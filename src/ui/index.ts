@@ -35,6 +35,8 @@ export function createUi(ctx: GameContext): UiHandle {
   const settings = createSettingsStore(ctx);
 
   const root = el('div', { id: 'ds-ui', class: 'ds-ui' });
+  // Modo de entrada para el CSS (targets táctiles, ocultar pistas de teclado, layout móvil).
+  root.dataset.input = ctx.input.touch ? 'touch' : 'mouse';
   // Variables de tema desde THEME (única fuente de colores).
   const vars: Record<string, string> = {
     '--c-bg': THEME.bg, '--c-panel': THEME.panel, '--c-text': THEME.text, '--c-dim': THEME.textDim,
@@ -46,7 +48,7 @@ export function createUi(ctx: GameContext): UiHandle {
   for (const k of Object.keys(vars)) root.style.setProperty(k, vars[k] as string);
 
   const hud = createHud(ctx, dis);
-  const shop = createShop(ctx);
+  const shop = createShop(ctx, dis);
   const map = createTacticalMap(ctx, dis);
   const screens = createScreens(ctx, settings, dis);
   root.append(hud.el, shop.el, map.el, screens.el);

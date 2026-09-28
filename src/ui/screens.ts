@@ -1,13 +1,14 @@
 /**
- * Pantallas de flujo: TÍTULO, PAUSA y FIN DE PARTIDA. Se muestran según `state.flow`;
- * las peticiones al orquestador se emiten por el bus de forma SÍNCRONA dentro del gesto
- * del usuario (imprescindible para poder pedir el bloqueo del puntero).
+ * Pantallas de flujo: TÍTULO, PAUSA, FIN DE PARTIDA y PERSONALIZAR OPERATIVO. Se muestran según
+ * `state.flow`; las peticiones al orquestador se emiten por el bus de forma SÍNCRONA dentro del
+ * gesto del usuario (imprescindible para poder pedir el bloqueo del puntero).
  */
 import { HUD, MISSIONS } from '../config';
 import type { GameContext } from '../core/context';
 import type { EndReason } from '../core/types';
 import { formatClock } from '../core/util';
 import { SLOGAN, TAGLINE } from './content';
+import { createCustomize } from './customize';
 import { TextCell, el, svgEl } from './dom';
 import type { Disposer } from './dom';
 import {
@@ -16,8 +17,11 @@ import {
 import type { RunSummary } from './format';
 import { icon } from './icons';
 import type { IconName } from './icons';
-import { createBriefingPanel, createControlsPanel, createSettingsPanel, createTabs } from './menus';
+import {
+  createBriefingPanel, createControlsPanel, createSettingsPanel, createTabs, createTouchGuidePanel,
+} from './menus';
 import type { BriefingPanel } from './menus';
+import { createNameField, createOperativeChip } from './operative';
 import type { SettingsStore } from './settings';
 
 export interface Screens {
@@ -26,7 +30,7 @@ export interface Screens {
   dispose(): void;
 }
 
-type ScreenKind = 'title' | 'pause' | 'end';
+type ScreenKind = 'title' | 'pause' | 'end' | 'custom';
 
 interface ScreenView {
   el: HTMLElement;
@@ -34,12 +38,14 @@ interface ScreenView {
   primary: HTMLElement;
   /** Se llama al mostrarse (rellenar contenido, reiniciar estado interno). */
   onShow(): void;
+  /** Con la pantalla ya visible (medir layout). */
+  onShown?(): void;
   onHide?(): void;
   update?(dt: number): void;
 }
 
-function button(label: string, kind: 'primary' | 'ghost' | 'danger', onClick: () => void, dis: Disposer, extra?: Node): HTMLButtonElement {
-  const b = el('button', { class: `btn btn-${kind}`, attrs: { type: 'button' } }, el('span', { class: 'btn-label', text: label }), extra);
+function button(label: string, kind: 'primary' | 'ghost' | 'danger', onClick: () => void, dis: Disposer, extra?: Node, ico?: IconName): HTMLButtonElement {
+  const b = el('button', { class: `btn btn-${kind}`, attrs: { type: 'button' } }, ico ? icon(ico) : null, el('span', { class: 'btn-label', text: label }), extra);
   dis.listen(b, 'click', onClick);
   return b;
 }
@@ -55,16 +61,18 @@ function detectIssues(ctx: GameContext): string[] {
   } catch {
     issues.push('No se pudo comprobar WebGL 2. Si ves una pantalla negra, activa la aceleración por hardware.');
   }
-  const canLock = 'pointerLockElement' in document && typeof Element.prototype.requestPointerLock === 'function';
-  if (!canLock) {
-    issues.push('Tu navegador no admite el bloqueo del puntero (Pointer Lock): no podrás apuntar con el ratón. Usa una versión reciente de Chrome, Edge o Firefox en un ordenador.');
-  }
-  try {
-    if (window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(any-pointer: fine)').matches) {
-      issues.push('No se detecta ratón: este juego requiere teclado y ratón.');
+  if (!ctx.input.touch) {
+    const canLock = 'pointerLockElement' in document && typeof Element.prototype.requestPointerLock === 'function';
+    if (!canLock) {
+      issues.push('Tu navegador no admite el bloqueo del puntero (Pointer Lock): no podrás apuntar con el ratón. Usa una versión reciente de Chrome, Edge o Firefox en un ordenador.');
     }
-  } catch {
-    /* matchMedia no disponible */
+    try {
+      if (window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(any-pointer: fine)').matches) {
+        issues.push('No se detecta ratón: este juego requiere teclado y ratón, o un dispositivo táctil compatible.');
+      }
+    } catch {
+      /* matchMedia no disponible */
+    }
   }
   return issues;
 }
@@ -85,27 +93,53 @@ function signalGlyph(): SVGSVGElement {
 
 export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Disposer): Screens {
   const root = el('div', 'screens');
+  const touch = ctx.input.touch;
   const emit = {
     start: (): void => ctx.bus.emit('ui:startRequested', {}),
     resume: (): void => ctx.bus.emit('ui:resumeRequested', {}),
     restart: (): void => ctx.bus.emit('ui:restartRequested', {}),
     title: (): void => ctx.bus.emit('ui:titleRequested', {}),
   };
+  const chips: Array<{ dispose(): void }> = [];
+
+  // ── Personalización: desde qué pantalla se abrió y qué botón la abrió ────────
+  let customFrom: 'title' | 'pause' | null = null;
+  let opener: HTMLElement | null = null;
+  const openCustom = (from: HTMLElement): void => {
+    if (ctx.state.flow !== 'title' && ctx.state.flow !== 'paused') return;
+    customFrom = ctx.state.flow === 'title' ? 'title' : 'pause';
+    opener = from;
+    show(kindNow());
+  };
+  const closeCustom = (): void => {
+    if (!customFrom) return;
+    customFrom = null;
+    show(kindNow());
+    opener?.focus({ preventScroll: true });
+  };
 
   // ── TÍTULO ───────────────────────────────────────────────────────────────
   const buildTitle = (): ScreenView => {
     const startBtn = button('Iniciar operación', 'primary', emit.start, dis, el('kbd', { class: 'btn-kbd', text: 'Enter' }));
+    const customBtn: HTMLButtonElement = button('Personalizar operativo', 'ghost', () => openCustom(customBtn), dis, undefined, 'user');
+    const chip = createOperativeChip(ctx, 'op-chip op-chip-title');
+    chips.push(chip);
     const noticeBox = el('div', { class: 'notices', attrs: { role: 'alert' } });
     const briefing = createBriefingPanel(false);
     const tabs = createTabs(
       'title',
       [
         { id: 'briefing', label: 'Briefing', icon: 'contract', panel: briefing.el },
-        { id: 'controls', label: 'Controles', icon: 'target', panel: createControlsPanel() },
+        touch
+          ? { id: 'controls', label: 'Gestos', icon: 'touch' as const, panel: createTouchGuidePanel() }
+          : { id: 'controls', label: 'Controles', icon: 'target' as const, panel: createControlsPanel() },
         { id: 'settings', label: 'Ajustes', icon: 'speaker', panel: createSettingsPanel(settings, 'title-set', dis) },
       ],
       dis,
     );
+    const hint = touch
+      ? 'Juega en horizontal. El botón de pausa está arriba a la derecha.'
+      : 'Esc pausa y libera el ratón. Al iniciar, el navegador capturará el puntero.';
     const node = el(
       'section',
       { class: 'screen screen-title', attrs: { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'ds-title-h', hidden: '' } },
@@ -126,7 +160,8 @@ export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Di
             el('span', { class: 'title-sub', text: 'EXCLUSION ZONE' }),
           ),
           el('p', { class: 'title-slogan', text: SLOGAN }),
-          el('div', 'title-cta', startBtn, el('p', { class: 'title-hint', text: 'Esc pausa y libera el ratón. Al iniciar, el navegador capturará el puntero.' })),
+          chip.el,
+          el('div', 'title-cta', el('div', 'cta-row', startBtn, customBtn), el('p', { class: 'title-hint', text: hint })),
           noticeBox,
         ),
         el('div', 'title-side panel', tabs.el),
@@ -158,12 +193,18 @@ export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Di
     });
     const restartBtn = button('Reiniciar', 'ghost', emit.restart, dis);
     const titleBtn = button('Volver al título', 'ghost', emit.title, dis);
+    const customBtn: HTMLButtonElement = button('Personalizar aspecto', 'ghost', () => openCustom(customBtn), dis, undefined, 'user');
+    const chip = createOperativeChip(ctx, 'op-chip');
+    chips.push(chip);
+    const nameField = createNameField(ctx, dis, { id: 'pause-name', live: false });
     const briefing: BriefingPanel = createBriefingPanel(true);
     const tabs = createTabs(
       'pause',
       [
         { id: 'contracts', label: 'Contratos', icon: 'contract', panel: briefing.el },
-        { id: 'controls', label: 'Controles', icon: 'target', panel: createControlsPanel() },
+        touch
+          ? { id: 'controls', label: 'Gestos', icon: 'touch' as const, panel: createTouchGuidePanel() }
+          : { id: 'controls', label: 'Controles', icon: 'target' as const, panel: createControlsPanel() },
         { id: 'settings', label: 'Ajustes', icon: 'speaker', panel: createSettingsPanel(settings, 'pause-set', dis) },
       ],
       dis,
@@ -183,6 +224,7 @@ export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Di
           el('p', { class: 'screen-sub', text: 'La simulación está detenida.' }),
           el('div', 'actions', resumeBtn, restartBtn, titleBtn),
           hint,
+          el('section', 'pause-operative', el('h3', { class: 'sec-title', text: 'Operativo' }), chip.el, nameField.el, customBtn),
         ),
         el('div', 'pause-side panel', tabs.el),
       ),
@@ -196,6 +238,7 @@ export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Di
         resumeLabel.set('Continuar');
         tabs.select('contracts');
         briefing.refresh(ctx.state);
+        nameField.sync();
         acc = 0;
       },
       onHide() {
@@ -205,8 +248,10 @@ export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Di
         if (resumeWait >= 0) {
           resumeWait -= dt;
           if (resumeWait < 0) {
-            resumeLabel.set('Haz clic para continuar');
-            hint.textContent = 'El navegador aún no permite capturar el ratón. Haz clic en «Continuar» para volver a la partida.';
+            resumeLabel.set(touch ? 'Toca para continuar' : 'Haz clic para continuar');
+            hint.textContent = touch
+              ? 'No se pudo volver a la partida. Toca «Continuar» otra vez.'
+              : 'El navegador aún no permite capturar el ratón. Haz clic en «Continuar» para volver a la partida.';
           }
         }
         acc += dt;
@@ -219,8 +264,8 @@ export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Di
   };
 
   // ── FIN DE PARTIDA ───────────────────────────────────────────────────────
-  let focusTimer = 0;
   let endInfo: { result: 'won' | 'lost'; reason: EndReason } | null = null;
+  let focusTimer = 0;
   const buildEnd = (): ScreenView => {
     const badge = el('div', { class: 'end-badge', attrs: { 'aria-hidden': 'true' } });
     const headline = el('h2', { id: 'ds-end-h', class: 'end-headline' });
@@ -230,13 +275,15 @@ export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Di
     const contracts = el('ul', { class: 'end-contracts', attrs: { 'aria-label': 'Contratos' } });
     const retry = button('Reintentar', 'primary', emit.restart, dis);
     const title = button('Título', 'ghost', emit.title, dis);
+    const chip = createOperativeChip(ctx, 'op-chip op-chip-end');
+    chips.push(chip);
     const node = el(
       'section',
       { class: 'screen screen-end', attrs: { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'ds-end-h', 'aria-describedby': 'ds-end-r', hidden: '', tabindex: '-1' } },
       el(
         'div',
         'end-wrap panel',
-        badge,
+        el('div', 'end-top', badge, chip.el),
         el('div', { class: 'eyebrow', text: 'INFORME DE OPERACIÓN' }),
         headline,
         el('div', { id: 'ds-end-r' }, reasonEl, detailEl),
@@ -293,21 +340,31 @@ export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Di
     };
   };
 
-  const views: Record<ScreenKind, ScreenView> = { title: buildTitle(), pause: buildPause(), end: buildEnd() };
+  const views: Record<ScreenKind, ScreenView> = {
+    title: buildTitle(),
+    pause: buildPause(),
+    end: buildEnd(),
+    custom: createCustomize(ctx, dis, () => closeCustom()),
+  };
   for (const v of Object.values(views)) root.append(v.el);
 
   // ── Sincronización con state.flow ───────────────────────────────────────
   let shown: ScreenKind | null = null;
 
-  const kindFor = (flow: GameContext['state']['flow']): ScreenKind | null =>
-    flow === 'title' ? 'title' : flow === 'paused' ? 'pause' : flow === 'ended' ? 'end' : null;
+  /** Pantalla que corresponde ahora al flujo (la personalización sólo cuelga de título/pausa). */
+  const kindNow = (): ScreenKind | null => {
+    const flow = ctx.state.flow;
+    if (flow !== 'title' && flow !== 'paused') customFrom = null;
+    if (customFrom) return 'custom';
+    return flow === 'title' ? 'title' : flow === 'paused' ? 'pause' : flow === 'ended' ? 'end' : null;
+  };
 
   const focusables = (node: HTMLElement): HTMLElement[] =>
     Array.from(node.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [tabindex="0"]')).filter(
       (n) => !n.closest('[hidden]'),
     );
 
-  const show = (next: ScreenKind | null): void => {
+  function show(next: ScreenKind | null): void {
     if (next === shown) return;
     window.clearTimeout(focusTimer);
     if (shown) {
@@ -322,7 +379,8 @@ export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Di
     v.onShow();
     v.el.hidden = false;
     v.primary.focus({ preventScroll: true });
-  };
+    v.onShown?.();
+  }
 
   // Trampa de foco ligera dentro del diálogo visible.
   dis.listen(root, 'keydown', (e) => {
@@ -344,8 +402,15 @@ export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Di
   // Enter / Escape globales (sólo si el foco no está en un control que ya los gestiona).
   dis.listen(document, 'keydown', (e) => {
     if (e.defaultPrevented || e.repeat) return;
+    if (shown === 'custom') {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeCustom();
+      }
+      return;
+    }
     const t = e.target instanceof Element ? e.target : null;
-    const interactive = !!t && t.matches('button, input, select, textarea, a[href], [role="tab"]');
+    const interactive = !!t && t.matches('button, input, select, textarea, a[href], [role="tab"], [role="radio"]');
     const flow = ctx.state.flow;
     if (e.key === 'Enter' && !interactive) {
       if (flow === 'title') {
@@ -367,28 +432,35 @@ export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Di
     .on('flow:ended', ({ result, reason }) => {
       endInfo = { result, reason };
       // Game cambia el flujo justo después de este evento; se sincroniza ya para no perder un frame.
-      show(kindFor('ended'));
+      customFrom = null;
+      show('end');
     })
     .on('flow:started', () => {
       endInfo = null;
-      show(kindFor(ctx.state.flow));
+      customFrom = null;
+      show(kindNow());
     })
-    .on('flow:paused', () => show('pause'))
-    .on('flow:resumed', () => show(null));
+    .on('flow:paused', () => show(kindNow()))
+    .on('flow:resumed', () => {
+      customFrom = null;
+      show(null);
+    });
 
   // Pantalla inicial coherente con el estado actual (normalmente 'title').
-  show(kindFor(ctx.state.flow));
+  show(kindNow());
 
   return {
     el: root,
     update(dt) {
       // `paused`/`ended` reflejan a Game con un frame de retraso como máximo.
-      show(kindFor(ctx.state.flow));
+      show(kindNow());
       if (shown) views[shown].update?.(dt);
     },
     dispose() {
       window.clearTimeout(focusTimer);
+      if (shown) views[shown].onHide?.();
       scope.dispose();
+      for (const c of chips) c.dispose();
       root.remove();
     },
   };

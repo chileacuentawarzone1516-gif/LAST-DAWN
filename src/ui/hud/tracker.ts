@@ -4,7 +4,7 @@ import { formatObjective } from '../../rules/markers';
 import type { ObjectiveStatus } from '../../rules/markers';
 import type { MissionId } from '../../core/types';
 import { AttrCell, StyleCell, TextCell, el, num, play, quant } from '../dom';
-import { formatMoney } from '../format';
+import { formatMoney, pickActiveObjective } from '../format';
 import { icon } from '../icons';
 import type { HudEnv, Widget } from './types';
 
@@ -55,7 +55,25 @@ export function createTracker(env: HudEnv): Widget {
       fill: new StyleCell(fill, '--v'), bar, lastStatus: null, lastProgress: -1,
     });
   }
-  const root = el('div', 'tracker-wrap', heading, list);
+  // Resumen de una línea (sólo visible en táctil): el contrato activo; tocar despliega la lista.
+  const sumTitle = el('span', 'trk-sum-title');
+  const sumText = el('span', 'trk-sum-text');
+  const summary = el(
+    'button',
+    { class: 'trk-summary', attrs: { type: 'button', 'aria-expanded': 'false', 'aria-label': 'Contratos: tocar para desplegar o plegar' } },
+    icon('contract'),
+    sumTitle,
+    sumText,
+    icon('back', 'ico trk-chev'),
+  );
+  const root = el('div', 'tracker-wrap', summary, heading, list);
+  const sTitle = new TextCell(sumTitle);
+  const sText = new TextCell(sumText);
+  env.dis.listen(summary, 'click', () => {
+    const open = root.classList.toggle('open');
+    summary.setAttribute('aria-expanded', String(open));
+    summary.blur();
+  });
 
   // Destello al completarse un contrato (además del dinero, que anuncia la economía).
   env.scope.on('mission:completed', ({ id }) => {
@@ -70,6 +88,9 @@ export function createTracker(env: HudEnv): Widget {
     update(_dt, slow) {
       if (!slow) return;
       const lines = formatObjective(ctx.state);
+      const active = pickActiveObjective(lines);
+      sTitle.set(active ? active.title : 'Contratos');
+      sText.set(active ? active.text : 'Todos completados');
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!;
         const row = rows[i]!;

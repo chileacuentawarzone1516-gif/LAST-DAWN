@@ -9,6 +9,8 @@ export interface MaterialsConfig {
   anisotropy: number;
   /** Con MSAA disponible la valla usa alpha-to-coverage (velo a distancia) en vez de alphaTest duro. */
   alphaToCoverage: boolean;
+  /** Hay mapa de entorno: sin él los metales se ven negros, así que se atenúa su metalicidad. */
+  env: boolean;
 }
 
 export interface Materials extends MaterialsApi {
@@ -21,6 +23,8 @@ export interface Materials extends MaterialsApi {
 interface Entry {
   material: THREE.MeshStandardMaterial;
   textures: THREE.Texture[];
+  /** Metalicidad de la receta (antes de atenuarla por falta de entorno). */
+  metalBase: number;
 }
 
 /**
@@ -30,7 +34,9 @@ interface Entry {
  */
 export function createMaterials(): Materials {
   const cache = new Map<MaterialKey, Entry>();
-  const cfg: MaterialsConfig = { lowTextures: false, anisotropy: 4, alphaToCoverage: true };
+  const cfg: MaterialsConfig = { lowTextures: false, anisotropy: 4, alphaToCoverage: true, env: true };
+  /** Metalicidad sin entorno (los metales reflejan sólo las luces directas). */
+  const NO_ENV_METAL = 0.4;
   let ms = 0;
 
   const dataTex = (data: Uint8Array, size: number, srgb: boolean, aniso: boolean): THREE.DataTexture => {
@@ -83,13 +89,16 @@ export function createMaterials(): Materials {
       m.roughness = 1;
       if (surf.metal) {
         m.metalnessMap = t;
-        m.metalness = 1;
+        e.metalBase = 1;
+        m.metalness = metalFactor(1);
       } else {
+        e.metalBase = 0;
         m.metalness = 0;
       }
     } else {
       m.roughness = r.ro;
-      m.metalness = r.me;
+      e.metalBase = r.me;
+      m.metalness = metalFactor(r.me);
     }
     if (r.alpha === 'blend') {
       m.transparent = true;
@@ -101,6 +110,8 @@ export function createMaterials(): Materials {
     m.needsUpdate = true;
     ms += performance.now() - t0;
   };
+
+  const metalFactor = (v: number): number => (cfg.env ? v : v * NO_ENV_METAL);
 
   const applyAlpha = (m: THREE.MeshStandardMaterial, mode: 'blend' | 'test' | undefined): void => {
     if (mode !== 'test') return;
@@ -119,7 +130,7 @@ export function createMaterials(): Materials {
       if (!e) {
         const m = new THREE.MeshStandardMaterial();
         m.name = key;
-        e = { material: m, textures: [] };
+        e = { material: m, textures: [], metalBase: 0 };
         cache.set(key, e);
         build(key, e);
       }
@@ -129,10 +140,15 @@ export function createMaterials(): Materials {
     configure(next) {
       const rebuild = (next.lowTextures !== undefined && next.lowTextures !== cfg.lowTextures)
         || (next.anisotropy !== undefined && next.anisotropy !== cfg.anisotropy);
+      const envChanged = next.env !== undefined && next.env !== cfg.env;
       const alphaChanged = next.alphaToCoverage !== undefined && next.alphaToCoverage !== cfg.alphaToCoverage;
       Object.assign(cfg, next);
-      if (rebuild) for (const [k, e] of cache) build(k, e);
-      else if (alphaChanged) {
+      if (rebuild) {
+        for (const [k, e] of cache) build(k, e);
+        return;
+      }
+      if (envChanged) for (const e of cache.values()) e.material.metalness = metalFactor(e.metalBase);
+      if (alphaChanged) {
         for (const [k, e] of cache) {
           applyAlpha(e.material, RECIPES[k].alpha);
           e.material.needsUpdate = true;

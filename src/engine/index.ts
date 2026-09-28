@@ -163,6 +163,7 @@ export function createEngine(opts: EngineOptions): Engine {
       lowTextures: p.lowTextures,
       anisotropy: Math.min(p.anisotropy, renderer.capabilities.getMaxAnisotropy()),
       alphaToCoverage: p.msaa > 0 && useHdr,
+      env: scene.environment !== null,
     });
     fx.setQuality(p);
     adaptive.reset();

@@ -117,6 +117,10 @@ export function createTacticalMap(ctx: GameContext, dis: Disposer): TacticalMap 
   const whereEl = el('span', 'map-where');
   const clockEl = el('span', 'map-clock');
   const srEl = el('p', { class: 'sr-only', attrs: { 'aria-live': 'off' } });
+  const closeBtn = el('button', { class: 'btn btn-ghost btn-icon map-close-btn', attrs: { type: 'button', 'aria-label': 'Cerrar mapa' } }, icon('cross'), el('span', { class: 'btn-label', text: 'Cerrar' }));
+  dis.listen(closeBtn, 'click', () => {
+    if (ctx.state.ui.modal === 'map') ctx.state.ui.modal = null;
+  });
   const head = el(
     'header',
     'map-head',
@@ -124,6 +128,7 @@ export function createTacticalMap(ctx: GameContext, dis: Disposer): TacticalMap 
     whereEl,
     clockEl,
     el('span', 'map-close', el('kbd', { text: 'M' }), ' / ', el('kbd', { text: 'Esc' }), ' cerrar'),
+    closeBtn,
   );
   const root = el(
     'section',
@@ -422,6 +427,14 @@ export function createTacticalMap(ctx: GameContext, dis: Disposer): TacticalMap 
     c.beginPath();
     c.arc(px, pz, Math.max(9, size * 0.022) + pulse * 3, 0, Math.PI * 2);
     c.stroke();
+    // Nombre del operativo junto a la flecha (a la izquierda si estamos pegados al borde derecho).
+    c.font = `700 ${Math.max(10, size * 0.0165)}px ${MONO_FONT}`;
+    const nameW = c.measureText(st.profile.name).width;
+    const right = px + Math.max(14, size * 0.03) + nameW < wx(B.maxX) - 4;
+    c.textAlign = right ? 'left' : 'right';
+    c.textBaseline = 'middle';
+    c.fillStyle = THEME.accent;
+    halo(c, st.profile.name, px + (right ? 1 : -1) * Math.max(14, size * 0.03), pz + Math.max(12, size * 0.026));
   };
 
   const slowUpdate = (): void => {

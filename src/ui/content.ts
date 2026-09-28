@@ -2,6 +2,7 @@
 import { CONTAMINATION, MISSIONS, TIMERS } from '../config';
 import { formatClock } from '../core/util';
 import type { MissionId } from '../core/types';
+import type { IconName } from './icons';
 
 export interface ControlItem {
   /** Alternativas de tecla: cada grupo es una combinación que se muestra con «/» entre ellas. */
@@ -104,3 +105,19 @@ export function matchRules(): RuleItem[] {
 
 export const SLOGAN = 'Restaura la señal. Sal con vida.';
 export const TAGLINE = 'Distrito industrial en cuarentena · hora azul · un solo superviviente';
+
+export interface GestureItem {
+  icon: IconName;
+  title: string;
+  text: string;
+}
+
+/** Guía de gestos táctiles (sustituye a la tabla de teclas en dispositivos táctiles). */
+export const TOUCH_GUIDE: GestureItem[] = [
+  { icon: 'touch', title: 'Mover', text: 'Arrastra con el pulgar izquierdo en la parte inferior izquierda: aparece el joystick. Empújalo al máximo para correr.' },
+  { icon: 'target', title: 'Mirar', text: 'Arrastra con el pulgar derecho sobre la pantalla para girar la cámara.' },
+  { icon: 'bullet', title: 'Disparar y apuntar', text: 'Botones grandes abajo a la derecha. Apuntar reduce la dispersión y ralentiza el giro.' },
+  { icon: 'grenade', title: 'Acciones', text: 'Salto, agacharse, recarga, granada, placa de armadura y cambio de arma: cada una tiene su botón.' },
+  { icon: 'crate', title: 'Interactuar y comprar', text: 'El botón de interacción aparece junto a lo que puedas usar; mantenlo pulsado donde se indique. En la tienda toca un artículo para comprarlo.' },
+  { icon: 'lz', title: 'Pausa y mapa', text: 'Los dos botones pequeños de arriba a la derecha. Toca el rastreador de contratos para desplegarlo o plegarlo.' },
+];

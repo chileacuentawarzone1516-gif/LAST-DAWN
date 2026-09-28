@@ -65,6 +65,23 @@ describe('dispersión', () => {
     expect(spreadMultiplier({ ...base, sprinting: true })).toBeGreaterThan(walking);
     expect(spreadMultiplier({ ...base, airborne: true })).toBeGreaterThan(walking);
   });
+  it('caminar penaliza poco y la transición parado → andando es continua (sin saltos)', () => {
+    const base = { crouched: false, airborne: false, sprinting: false };
+    const still = spreadMultiplier({ ...base, speed01: 0 });
+    const walk = spreadMultiplier({ ...base, speed01: 1 });
+    expect(walk / still).toBeLessThan(1.4);
+    expect(walk).toBeLessThanOrEqual(1 + WEAPON_HANDLING.spreadMoveMult + 1e-9);
+    let prev = still;
+    for (let v = 0.01; v <= 1.0001; v += 0.01) {
+      const m = spreadMultiplier({ ...base, speed01: v });
+      expect(m).toBeGreaterThanOrEqual(prev - 1e-12);
+      expect(m - prev).toBeLessThan(0.02);
+      prev = m;
+    }
+    // correr y saltar siguen penalizando bastante más que caminar
+    expect(spreadMultiplier({ ...base, speed01: 1, sprinting: true })).toBeGreaterThan(walk * 1.4);
+    expect(spreadMultiplier({ ...base, speed01: 1, airborne: true })).toBeGreaterThan(walk * 1.8);
+  });
   it('la dispersión total respeta el máximo del arma', () => {
     for (const id of ids) {
       const d = WEAPONS[id];

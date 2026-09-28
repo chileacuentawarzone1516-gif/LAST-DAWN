@@ -11,6 +11,7 @@ import { createDamage } from './damage';
 import { createInteract } from './interact';
 import { createMoney } from './money';
 import { createNotifications } from './notify';
+import { createOperative } from './operative';
 import { createReticle } from './reticle';
 import { createTracker } from './tracker';
 import type { HudEnv, Widget } from './types';
@@ -42,6 +43,7 @@ export function createHud(ctx: GameContext, dis: Disposer): Hud {
   const money = createMoney(env);
   const notes = createNotifications(env);
   const vitals = createVitals(env);
+  const operative = createOperative(env, vitals.el);
   const weapon = createWeapon(env);
   const zoneLabel = createZoneLabel(env);
   const zoneBanner = createZoneBanner(env);
@@ -50,7 +52,7 @@ export function createHud(ctx: GameContext, dis: Disposer): Hud {
   const interact = createInteract(env);
 
   const widgets: Widget[] = [
-    tracker, compass, clock, contam.banner, boss, money, notes, vitals, weapon, zoneLabel, zoneBanner,
+    tracker, compass, clock, contam.banner, boss, money, notes, vitals, operative, weapon, zoneLabel, zoneBanner,
     reticle, damage, interact,
   ];
 
@@ -61,7 +63,7 @@ export function createHud(ctx: GameContext, dis: Disposer): Hud {
     el('div', 'hud-tl', tracker.el),
     el('div', 'hud-tc', compass.el, clock.el, contam.banner.el, boss.el),
     el('div', 'hud-tr', money.el, notes.el),
-    el('div', 'hud-bl', vitals.el),
+    el('div', 'hud-bl', operative.el),
     el('div', 'hud-br', weapon.el),
     el('div', 'hud-bc', zoneLabel.el),
     el('div', 'hud-banner', zoneBanner.el),

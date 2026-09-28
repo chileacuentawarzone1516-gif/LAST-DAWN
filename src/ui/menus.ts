@@ -4,7 +4,7 @@
  */
 import { formatObjective } from '../rules/markers';
 import type { RunState } from '../core/state';
-import { CONTROLS, contractBriefs, matchRules } from './content';
+import { CONTROLS, TOUCH_GUIDE, contractBriefs, matchRules } from './content';
 import { AttrCell, TextCell, el } from './dom';
 import type { Disposer } from './dom';
 import { formatMoney } from './format';
@@ -244,4 +244,22 @@ export function createControlsPanel(): HTMLElement {
     ),
   );
   return el('div', 'controls', ...groups);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Guía de gestos (táctil)
+// ─────────────────────────────────────────────────────────────────────────────
+export function createTouchGuidePanel(): HTMLElement {
+  return el(
+    'div',
+    'controls touch-guide',
+    el('h3', { class: 'sec-title', text: 'Controles táctiles' }),
+    el(
+      'ul',
+      'gestures',
+      ...TOUCH_GUIDE.map((g) =>
+        el('li', 'gesture', el('span', 'gesture-ico', icon(g.icon)), el('div', 'gesture-body', el('b', { class: 'gesture-title', text: g.title }), el('span', { class: 'gesture-text', text: g.text }))),
+      ),
+    ),
+  );
 }

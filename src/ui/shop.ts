@@ -7,6 +7,7 @@ import { SHOP } from '../config';
 import type { VendorId } from '../config';
 import type { GameContext } from '../core/context';
 import { AttrCell, TextCell, el, play } from './dom';
+import type { Disposer } from './dom';
 import { SHOP_DENIED_TEXT, SHOP_STATUS_TEXT, formatMoney, shopItemStatus } from './format';
 import { icon } from './icons';
 
@@ -29,26 +30,37 @@ interface Row {
 
 const MESSAGE_S = 2.6;
 
-export function createShop(ctx: GameContext): ShopOverlay {
+export function createShop(ctx: GameContext, dis: Disposer): ShopOverlay {
   const titleEl = el('h2', { class: 'shop-title', id: 'ds-shop-h' });
   const moneyEl = el('span', 'shop-money-val');
   const msgEl = el('p', { class: 'shop-msg', attrs: { role: 'status', 'aria-live': 'polite' } });
   const list = el('ol', { class: 'shop-items', attrs: { 'aria-label': 'Artículos a la venta' } });
   const rows: Row[] = [];
+  const closeBtn = el('button', { class: 'btn btn-ghost btn-icon shop-close', attrs: { type: 'button', 'aria-label': 'Cerrar tienda' } }, icon('cross'), el('span', { class: 'btn-label', text: 'Cerrar' }));
+  dis.listen(closeBtn, 'click', () => {
+    // El módulo de misiones cierra la tienda (y limpia su estado); si no existe, se cierra el modal directamente.
+    if (typeof ctx.missions?.closeShop === 'function') ctx.missions.closeShop();
+    if (ctx.state.ui.modal === 'shop') ctx.state.ui.modal = null;
+  });
   for (let i = 0; i < 6; i++) {
     const name = el('span', 'item-name');
     const desc = el('span', 'item-desc');
     const price = el('span', 'item-price');
     const tag = el('span', 'item-tag');
-    const li = el(
-      'li',
-      'shop-item',
+    // Cada artículo es un botón: en táctil, tocarlo emite la tecla numérica (compra el módulo de misiones).
+    const btn = el(
+      'button',
+      { class: 'shop-item', attrs: { type: 'button', tabindex: '-1' } },
       el('kbd', { class: 'item-key', text: String(i + 1), attrs: { 'aria-hidden': 'true' } }),
       el('span', 'item-body', name, desc),
       el('span', 'item-end', price, tag),
     );
-    list.append(li);
-    rows.push({ li, name: new TextCell(name), desc: new TextCell(desc), price: new TextCell(price), tag: new TextCell(tag), status: new AttrCell(li, 'data-status'), itemId: '' });
+    dis.listen(btn, 'click', () => {
+      ctx.bus.emit('input:digit', { n: i + 1 });
+      btn.blur();
+    });
+    list.append(el('li', 'shop-li', btn));
+    rows.push({ li: btn, name: new TextCell(name), desc: new TextCell(desc), price: new TextCell(price), tag: new TextCell(tag), status: new AttrCell(btn, 'data-status'), itemId: '' });
   }
   const root = el(
     'section',
@@ -56,10 +68,16 @@ export function createShop(ctx: GameContext): ShopOverlay {
     el(
       'div',
       'shop-panel',
-      el('header', 'shop-head', el('span', 'shop-ico', icon('crate')), titleEl, el('span', { class: 'shop-money', attrs: { 'aria-label': 'Dinero disponible' } }, icon('money'), moneyEl)),
+      el('header', 'shop-head', el('span', 'shop-ico', icon('crate')), titleEl, el('span', { class: 'shop-money', attrs: { 'aria-label': 'Dinero disponible' } }, icon('money'), moneyEl), closeBtn),
       list,
       msgEl,
-      el('footer', 'shop-foot', el('span', {}, 'Pulsa ', el('kbd', { text: '1' }), '–', el('kbd', { text: '6' }), ' para comprar'), el('span', {}, el('kbd', { text: 'E' }), ' o aléjate para cerrar')),
+      el(
+        'footer',
+        'shop-foot',
+        el('span', 'hint-kb', 'Pulsa ', el('kbd', { text: '1' }), '–', el('kbd', { text: '6' }), ' para comprar'),
+        el('span', 'hint-kb', el('kbd', { text: 'E' }), ' o aléjate para cerrar'),
+        el('span', { class: 'hint-touch', text: 'Toca un artículo para comprarlo' }),
+      ),
     ),
   );
 

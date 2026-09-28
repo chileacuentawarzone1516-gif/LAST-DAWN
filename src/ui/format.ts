@@ -6,6 +6,7 @@ import { PLAYER, WEAPONS } from '../config';
 import type { ShopItem, WeaponDef } from '../config';
 import type { PlayerState, RunState } from '../core/state';
 import type { EndReason, MissionId } from '../core/types';
+import type { ObjectiveLine, ObjectiveStatus } from '../rules/markers';
 
 /** 3000 → "$3.000" (separador de millar español); negativos → "-$200". */
 export function formatMoney(amount: number): string {
@@ -144,4 +145,22 @@ export function shopItemStatus(item: ShopItem, player: PlayerState): ShopStatus 
     }
   }
   return player.money < item.price ? 'funds' : 'ok';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rastreador plegado (táctil)
+// ─────────────────────────────────────────────────────────────────────────────
+const SUMMARY_PRIORITY: Record<ObjectiveStatus, number> = { active: 0, todo: 1, locked: 2, failed: 3, done: 4 };
+
+/**
+ * Contrato que resume el rastreador plegado: el activo; si no hay, el siguiente pendiente;
+ * luego bloqueados y fallidos. Con todos completados devuelve null.
+ */
+export function pickActiveObjective(lines: readonly ObjectiveLine[]): ObjectiveLine | null {
+  let best: ObjectiveLine | null = null;
+  for (const l of lines) {
+    if (l.status === 'done') continue;
+    if (!best || SUMMARY_PRIORITY[l.status] < SUMMARY_PRIORITY[best.status]) best = l;
+  }
+  return best;
 }
