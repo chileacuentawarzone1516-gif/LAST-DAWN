@@ -68,8 +68,11 @@ export function buildChain(ac: BaseAudioContext, dest: AudioNode, levels: Levels
   const analyser = ac.createAnalyser();
   analyser.fftSize = 2048;
   analyser.smoothingTimeConstant = 0.7;
+  // ganancia de compensación: los recetas se escriben con margen; el compresor y el recortador la contienen
+  const makeup = gainNode(ac, 1.8);
   master.connect(muffle);
-  muffle.connect(comp);
+  muffle.connect(makeup);
+  makeup.connect(comp);
   comp.connect(clip);
   clip.connect(dest);
   clip.connect(analyser);

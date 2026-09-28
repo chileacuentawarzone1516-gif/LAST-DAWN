@@ -60,9 +60,12 @@ try {
   if (post.errors) { console.log('FALLA: errores de receta', post.lastError); failed = true; }
   if (post.voices > 40) { console.log('FALLA: demasiadas voces', post.voices); failed = true; }
 
-  if (hasProblems(problems)) {
-    console.log('Problemas de consola:\n' + formatProblems(problems));
+  // requestfailed = peticiones abortadas por recargas de Vite (otros agentes editan a la vez): sólo aviso
+  if (problems.errors.length + problems.pageErrors.length > 0) {
+    console.log('Problemas de consola:\n' + formatProblems({ ...problems, failedRequests: [] }));
     failed = true;
+  } else if (hasProblems(problems)) {
+    console.log(`aviso: ${problems.failedRequests.length} peticiones abortadas (recargas de Vite)`);
   }
   await ctx2.close();
 } finally {

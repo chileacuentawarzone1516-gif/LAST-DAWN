@@ -270,7 +270,7 @@ const plateApply: Recipe = (ac, dest, t0, p) => {
   noiseBurst(ac, dest, t0, { dur: 0.22, peak: 0.12, attack: 0.02, type: 'highpass', f0: 2600, q: 0.6, rng: r });
   scatter(ac, dest, t0, { count: 26, span: 0.2, peak: 0.1, fLo: 2500, fHi: 4500, q: 0.8, hitDur: 0.006, rng: r });
   // matraca (clics que se aceleran y suben de tono)
-  const n = 6;
+  const n = 5;
   for (let i = 0; i < n; i++) {
     const f = i / (n - 1);
     const t = t0 + D * (0.2 + 0.6 * f * f * 0.5 + 0.3 * f);

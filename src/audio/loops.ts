@@ -152,7 +152,7 @@ export function createRelayLoop(ac: BaseAudioContext, dest: AudioNode, t0: numbe
       lp.frequency.setTargetAtTime(350 + 1500 * p, when, tc);
       tremLfo.frequency.setTargetAtTime(5 + 9 * p, when, tc);
       buzzGain.gain.setTargetAtTime(0.02 + 0.06 * p, when, tc);
-      out.gain.setTargetAtTime(inside ? 0.32 + 0.18 * p : 0.1, when, 0.3);
+      out.gain.setTargetAtTime(inside ? 0.16 + 0.1 * p : 0.05, when, 0.3);
     },
     stop(when, fade = 0.5) {
       if (stopped) return;

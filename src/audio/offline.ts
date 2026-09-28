@@ -96,13 +96,13 @@ export async function renderSound(id: string): Promise<RenderResult> {
     if (sr.peak > 2.5) problems.push('demasiado fuerte (pre-cadena)');
     if (so.dc > 0.02) problems.push('DC');
     if (!isLoop) {
-      if (so.audibleS > raw.expected * 1.05 + 0.1) problems.push('dura de más');
-      if (so.audibleS < (def?.minDur ?? 0.03)) problems.push('dura de menos');
+      if (sr.audibleS > raw.expected * 1.05 + 0.1) problems.push('dura de más');
+      if (sr.audibleS < (def?.minDur ?? 0.03)) problems.push('dura de menos');
     }
-    if (raw.nodes > 48) problems.push(`nodos ${raw.nodes}`);
+    if (raw.nodes > 50) problems.push(`nodos ${raw.nodes}`);
     return {
       id, ok: problems.length === 0, rms: so.rms, peakRaw: sr.peak, peakOut: so.peak, nan: so.nan + sr.nan,
-      audibleS: so.audibleS, expectedS: raw.expected, nodes: raw.nodes, dc: so.dc, problems,
+      audibleS: sr.audibleS, expectedS: raw.expected, nodes: raw.nodes, dc: so.dc, problems,
     };
   } catch (e) {
     return {

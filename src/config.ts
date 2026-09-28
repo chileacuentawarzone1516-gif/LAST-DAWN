@@ -501,7 +501,7 @@ export const ENEMY_AI = {
   turnRate: 7,
   separationStrength: 1.5,
   /** Campo de flujo hacia el jugador: refresco (s), desplazamiento que fuerza el refresco (m) y radio calculado (m). */
-  flow: { rebuildS: 0.35, moveThresholdM: 1.5, radiusM: 100 },
+  flow: { rebuildS: 0.35, moveThresholdM: 1.5, radiusM: 80 },
   /** Nivel de detalle: animación completa < fullM, reducida < midM; no se dibuja a más de drawM. */
   lod: { fullM: 30, midM: 62, drawM: 190 },
   /** Cadáveres: tiempo tendidos (s), hundimiento final (s) y máximo simultáneo. */

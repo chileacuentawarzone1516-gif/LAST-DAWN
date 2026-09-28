@@ -48,7 +48,7 @@ const heliInfo: HelicopterInfo = {
 const mockMissions = (ctx: GameContext): MissionsApi => ({ ...createStubMissions(ctx), get helicopter() { return heliInfo; } });
 
 const qa = new URLSearchParams(location.search).get('qa') === '1';
-const game = createDevGame({ use: ['audio'], overrides: { missions: mockMissions }, autoStart: qa });
+const game = createDevGame({ use: ['audio'], overrides: { missions: mockMissions }, autoStart: false });
 const ctx = game.ctx;
 const audio = ctx.audio as AudioDevApi;
 void createAudio;
@@ -81,7 +81,7 @@ window.__audioQa = {
       ctx.bus.emit('bullet:impact', { point: { x: i % 7, y: 1, z: -10 }, normal: { x: 0, y: 1, z: 0 }, surface: 'concrete' });
     }
   },
-  unlock: () => audio.unlock(),
+  unlock: () => game.beginRun(),
   wrote: () => true,
 };
 
