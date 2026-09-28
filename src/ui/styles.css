@@ -386,7 +386,8 @@
 .btn-sm { padding: 0.45em 0.9em; font-size: 0.85em; }
 .btn-icon { padding: 0.6em; gap: 0.4em; }
 .btn .ico { width: 1.2em; height: 1.2em; }
-.cta-row { display: flex; flex-wrap: wrap; gap: 0.7em; }
+.cta-row { display: flex; flex-direction: column; align-items: stretch; gap: 0.6em; width: min(100%, 21em); }
+.title-cta .cta-row .btn { font-size: 1.05em; }
 .btn:disabled { opacity: 0.45; cursor: default; }
 
 /* Retratos y ficha del operativo */
@@ -412,13 +413,12 @@
 
 /* Campo de nombre */
 .namefield { display: grid; gap: 0.4em; }
-.name-row { display: flex; align-items: center; gap: 0.6em; position: relative; }
-.name-input { flex: 1; min-width: 0; min-height: 2.6em; padding: 0.5em 3.6em 0.5em 0.8em; font: 600 1em var(--mono); color: var(--c-text); background: rgba(214, 228, 245, 0.06); border: 1px solid var(--line); border-radius: 0.3em; user-select: text; -webkit-user-select: text; }
+.name-row { display: flex; align-items: center; gap: 0.6em; }
+.name-wrap { position: relative; flex: 1; min-width: 0; display: flex; }
+.name-input { flex: 1; width: 100%; min-width: 0; min-height: 2.6em; padding: 0.5em 3.6em 0.5em 0.8em; font: 600 1em var(--mono); color: var(--c-text); background: rgba(214, 228, 245, 0.06); border: 1px solid var(--line); border-radius: 0.3em; user-select: text; -webkit-user-select: text; }
 .name-input:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 1px; }
 .name-input[aria-invalid="true"] { border-color: var(--c-danger); }
-.name-count { position: absolute; right: 0.8em; font-size: 0.72em; color: var(--c-dim); }
-.namefield .btn-sm ~ .name-count { right: auto; }
-.name-row:has(.btn) .name-count { right: 6.6em; }
+.name-count { position: absolute; right: 0.8em; top: 50%; transform: translateY(-50%); font-size: 0.72em; color: var(--c-dim); pointer-events: none; }
 .name-msg { margin: 0; min-height: 1.3em; font-size: 0.74em; color: var(--c-dim); }
 .name-msg[data-tone="ok"] { color: var(--c-accent); }
 .name-msg[data-tone="warn"] { color: var(--c-warn); }
@@ -589,4 +589,48 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ds-ui[data-input="touch"] .trk-chev { transition: none; }
+}
+
+/* Ajustes tras la revisión visual del HUD táctil */
+.hud-tl { z-index: 2; }
+.ds-ui[data-input="touch"] .hud-tl { width: min(30vw, 22em); }
+.ds-ui[data-input="touch"] .hud-tc { width: min(36vw, 28em); }
+.ds-ui[data-input="touch"] .hud-bc { top: calc(var(--st) + 0.6em + 44px + 0.4em); }
+.ds-ui[data-input="touch"] .contam { white-space: nowrap; font-size: 0.78em; gap: 0.4em; }
+.ds-ui[data-input="touch"] .contam-text { overflow: hidden; text-overflow: ellipsis; }
+.contam-edge { white-space: nowrap; }
+
+/* Tienda en pantallas cortas: dos columnas y desplazamiento interno */
+@media (max-height: 480px) {
+  .shop-panel { width: min(94vw, 56em); max-height: calc(100vh - 8px); max-height: calc(100dvh - 8px); overflow-y: auto; }
+  .shop-items { grid-template-columns: 1fr 1fr; }
+  .shop-head { margin-bottom: 0.4em; }
+  .shop-item { padding: 0.3em 0.6em; gap: 0.6em; }
+  .item-name { font-size: 0.88em; }
+  .item-desc { font-size: 0.68em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .shop-msg { min-height: 1.2em; margin-top: 0.3em; }
+  .shop-foot { margin-top: 0.2em; padding-top: 0.3em; }
+}
+.shop-panel { touch-action: pan-y; }
+
+@media (max-height: 480px) {
+  .custom-actions { flex-wrap: nowrap; padding: 0.35em 0.8em; gap: 0.4em; }
+  .custom-actions .btn { padding: 0.35em 0.7em; font-size: 0.85em; }
+  .custom-head .screen-h { font-size: 1.15em; }
+  .custom-head { padding: 0.35em 0.8em; }
+  .custom-sec .sec-title { margin-bottom: 0.4em; }
+  .custom-scroll { gap: 0.8em; }
+}
+
+/* Orden de capas: HUD < tienda < mapa < pantallas (cada una en su propio contexto de apilado). */
+.hud { z-index: 1; }
+.shop { z-index: 3; }
+.map { z-index: 4; }
+.screens { z-index: 5; }
+
+/* Tablet táctil (relación cercana a 4:3): más ancho para barras y arma, sin solapes. */
+@media (max-aspect-ratio: 8/5) and (min-height: 600px) {
+  .ds-ui[data-input="touch"] .hud-bl { left: 26%; width: 31%; min-width: 0; }
+  .ds-ui[data-input="touch"] .hud-br { left: 59%; width: 17%; min-width: 0; }
+  .ds-ui[data-input="touch"] .weapon-name { white-space: nowrap; font-size: 0.7em; }
 }

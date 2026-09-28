@@ -30,6 +30,11 @@ const LEGEND: Array<{ id: string; kind: Marker['kind']; text: string }> = [
   { id: 'gate', kind: 'gate', text: 'Puerta del complejo' },
 ];
 
+/** Nombres cortos de zona para mapas pequeños (móvil). */
+const SHORT_ZONE: Record<string, string> = { perimeter: 'Perímetro Sur', warehouses: 'Almacenes', refinery: 'Refinería', complex: 'Complejo' };
+/** Por debajo de este lado (px) el mapa se considera compacto: menos rótulos para que no se solapen. */
+const COMPACT_PX = 560;
+
 const B = MAP.bounds;
 const SPAN = B.maxX - B.minX;
 /** Margen (px CSS) para los rótulos de los ejes. */
@@ -245,7 +250,7 @@ export function createTacticalMap(ctx: GameContext, dis: Disposer): TacticalMap 
       const ty = wz(r.minZ) + 8;
       c.font = `700 ${fs}px ${MONO_FONT}`;
       c.fillStyle = col;
-      halo(c, z.name.toUpperCase(), tx, ty);
+      halo(c, (size < COMPACT_PX ? (SHORT_ZONE[z.id] ?? z.name) : z.name).toUpperCase(), tx, ty);
       const pips = threatPips(z.threat);
       for (let i = 0; i < pips.length; i++) {
         c.fillStyle = pips[i] ? col : 'rgba(214, 228, 245, 0.2)';
@@ -337,12 +342,14 @@ export function createTacticalMap(ctx: GameContext, dis: Disposer): TacticalMap 
       c.setLineDash([]);
       c.lineDashOffset = 0;
       c.restore();
-      c.font = `700 ${Math.max(10, size * 0.017)}px ${MONO_FONT}`;
-      c.textAlign = 'center';
-      c.textBaseline = 'middle';
-      c.fillStyle = THEME.accent;
-      const ly = Math.max(z0 + 14, cz - r + 14);
-      halo(c, 'CONTAMINACIÓN', cx, Math.min(ly, z0 + wpx - 14));
+      if (size >= COMPACT_PX) {
+        c.font = `700 ${Math.max(10, size * 0.017)}px ${MONO_FONT}`;
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillStyle = THEME.accent;
+        const ly = Math.max(z0 + 30, cz - r + 14);
+        halo(c, 'CONTAMINACIÓN', cx, Math.min(ly, z0 + wpx - 14));
+      }
     }
 
     // Marcadores.
@@ -383,11 +390,14 @@ export function createTacticalMap(ctx: GameContext, dis: Disposer): TacticalMap 
       c.lineWidth = m.active ? 2 : 1.3;
       c.stroke();
       drawIcon(c, MARKER_ICON[m.kind], cx, cz, isz, m.color);
-      const lab = labelFor(m);
-      c.textAlign = lab.align;
-      c.textBaseline = lab.base;
-      c.fillStyle = m.active ? THEME.text : THEME.textDim;
-      halo(c, m.short, cx + lab.dx, cz + lab.dy);
+      // En mapas compactos sólo se rotulan los objetivos (la leyenda explica el resto de iconos).
+      if (size >= COMPACT_PX || m.active || m.kind === 'lz') {
+        const lab = labelFor(m);
+        c.textAlign = lab.align;
+        c.textBaseline = lab.base;
+        c.fillStyle = m.active ? THEME.text : THEME.textDim;
+        halo(c, m.short, cx + lab.dx, cz + lab.dy);
+      }
       c.globalAlpha = 1;
     }
 

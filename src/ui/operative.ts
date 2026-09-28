@@ -103,7 +103,7 @@ export function createNameField(ctx: ProfileCtx, dis: Disposer, opts: NameFieldO
     if (saveBtn) saveBtn.disabled = false;
   });
 
-  const row = el('div', 'name-row', input, countEl);
+  const row = el('div', 'name-row', el('div', 'name-wrap', input, countEl));
   if (!opts.live) {
     saveBtn = el('button', { class: 'btn btn-ghost btn-sm', attrs: { type: 'button' } }, el('span', { class: 'btn-label', text: 'Guardar' }));
     // pointerdown antes del blur del campo: evita que el blur restaure el valor antes del clic.

@@ -177,7 +177,7 @@ export function createCustomize(ctx: GameContext, dis: Disposer, back: () => voi
     'custom-panel panel',
     el('header', 'custom-head', backBtn, el('div', 'custom-titles', el('div', { class: 'eyebrow', text: 'EXPEDIENTE' }), el('h2', { id: 'ds-custom-h', class: 'screen-h', text: 'PERSONALIZAR OPERATIVO' }))),
     el('div', 'custom-scroll',
-      section('Identidad', nameField.el),
+      el('section', 'custom-sec', nameField.el),
       section('Género', gender.el),
       section('Apariencias', presets.el, customBadge),
       section('Ajuste fino', el('div', 'fine-grid',
