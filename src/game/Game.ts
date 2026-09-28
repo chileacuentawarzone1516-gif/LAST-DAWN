@@ -149,6 +149,7 @@ export class Game {
 
   /** Avanza la simulación sin dibujar (QA: acelera partidas completas). */
   step(seconds: number, dt = 1 / 30): void {
+    if (!(dt > 0) || !Number.isFinite(seconds)) return;
     let left = seconds;
     while (left > 1e-6) {
       const d = Math.min(dt, left);
@@ -161,13 +162,11 @@ export class Game {
   /** Empieza una partida nueva. Debe invocarse dentro del gesto del usuario (pointer lock). */
   beginRun(): void {
     const { ctx } = this;
-    if (this.runDirty) {
-      this.disposeRun();
-      resetRunState(ctx.state, 'playing');
-      this.buildRun();
-    } else {
-      resetRunState(ctx.state, 'playing');
-    }
+    // Siempre se recrean los módulos por partida: resetRunState sustituye los sub-objetos
+    // de state, así que un módulo construido antes cachearía referencias obsoletas.
+    this.disposeRun();
+    resetRunState(ctx.state, 'playing');
+    this.buildRun();
     this.runDirty = true;
     ctx.interactions.update(0);
     ctx.audio.unlock();

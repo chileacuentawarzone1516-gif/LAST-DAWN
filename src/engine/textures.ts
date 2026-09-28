@@ -59,6 +59,8 @@ export interface Recipe {
   emissive?: { color: number; intensity: number };
   /** Color base del material (multiplica el mapa; blanco por defecto). */
   tint?: number;
+  /** Lado de generación en px (por defecto 128; 256 para superficies grandes del mundo; 64 emisivos). */
+  size?: number;
 }
 
 const sat = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -478,6 +480,14 @@ export function heightToNormal(h: Float32Array, size: number, strength: number):
   }
   return out;
 }
+
+// Superficies grandes del mundo a 256 px; emisivos a 64 px; el resto a 128 px (presupuesto de generación).
+const BIG: MaterialKey[] = [
+  'asphalt', 'asphaltWorn', 'concrete', 'concreteDark', 'concreteStained', 'dirt', 'gravel', 'brick', 'corrugated',
+  'metalPanel', 'containerRed', 'containerBlue', 'containerGreen', 'containerYellow', 'containerGrey', 'plaster', 'fence', 'rustMetal',
+];
+for (const k of BIG) RECIPES[k].size = 256;
+for (const k of ['emissiveRed', 'emissiveBlue', 'emissiveAmber', 'emissiveGreen', 'emissiveWhite'] as MaterialKey[]) RECIPES[k].size = 64;
 
 /** Albedo en orden de textura (fila 0 = abajo). */
 export function flipRows(src: Uint8ClampedArray, size: number): Uint8Array {

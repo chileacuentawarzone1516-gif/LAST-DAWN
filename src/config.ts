@@ -703,7 +703,7 @@ export const RENDER = {
   sky: { top: 0x0a1428, horizon: 0x2f5085, ground: 0x0e1420, fog: 0x172640, moon: 0xa9c4ff, ambient: 0x3b5583 },
   fogNear: 30,
   fogDensity: 0.0085,
-  exposure: 0.95,
+  exposure: 1.15,
   /** Presupuestos que vigilan los scripts de QA (renderer.info). */
   budget: { drawCalls: 900, triangles: 1_200_000 },
   /** Luna: dirección de la luz direccional y del disco del cielo (grados; azimut 0 = norte, + hacia el este). */
@@ -785,7 +785,7 @@ export const WORLD = {
   /** Radio libre de colisionadores alrededor de cada punto clave (m). */
   poiClearRadius: 3.2,
   /** Tamaño (m) de los lotes de geometría estática fusionada (frustum culling por lote). */
-  chunkSize: 100,
+  chunkSize: 134,
   /** Luces puntuales estáticas sin sombra en puntos críticos (0 = sólo emisivo). */
   pointLights: true,
   /** Presupuestos que vigila el test de rendimiento del mundo. */

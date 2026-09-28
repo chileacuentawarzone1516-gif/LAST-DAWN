@@ -39,7 +39,8 @@ export function installQa(game: Game): QaApi {
   const input = ctx.input as unknown as { inject(a: Action, d: boolean): void };
   const qa: QaApi = {
     game,
-    snapshot: () => JSON.parse(JSON.stringify(ctx.state)),
+    // structuredClone conserva NaN/Infinity (JSON los convertiría en null y los ocultaría).
+    snapshot: () => structuredClone(ctx.state),
     start: () => game.beginRun(),
     step: (s, dt) => game.step(s, dt),
     teleport: (x, z, yaw) => ctx.player.teleport(x, z, yaw),

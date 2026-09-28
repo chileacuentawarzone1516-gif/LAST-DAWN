@@ -50,7 +50,7 @@ export function createMaterials(): Materials {
     const t0 = performance.now();
     const r = RECIPES[key];
     const low = cfg.lowTextures;
-    const size = low ? 128 : 256;
+    const size = low ? Math.min(128, r.size ?? 128) : (r.size ?? 128);
     for (const t of e.textures) t.dispose();
     e.textures = [];
     const surf = bake(r, size, !low);

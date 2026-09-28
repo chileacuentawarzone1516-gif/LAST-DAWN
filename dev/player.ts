@@ -227,6 +227,7 @@ const btn = (label: string, fn: () => void): void => {
 const give = (id: WeaponId): void => {
   const def = WEAPONS[id];
   ctx.state.player.slots[def.slot] = createWeaponSlot(id, 3);
+  ctx.state.player.activeSlot = def.slot;
   ctx.bus.emit('loadout:changed', {});
 };
 for (const id of Object.keys(WEAPONS) as WeaponId[]) btn(id, () => give(id));

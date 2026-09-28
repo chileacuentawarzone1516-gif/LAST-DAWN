@@ -500,7 +500,7 @@ export function createArm(materials: MaterialsApi, side: 1 | -1): ArmRig {
   const dir = new THREE.Vector3(0, 0, 1).applyEuler(rot);
   const len = 0.46;
   const c: V3 = [dir.x * (0.055 + len / 2), dir.y * (0.055 + len / 2) - 0.003, dir.z * (0.055 + len / 2)];
-  b.cylZ('arm', 'clothOlive', 0.034, 0.05, len, c, 10, [rot.x, rot.y, rot.z]);
+  b.cylZ('arm', 'clothDark', 0.03, 0.042, len, c, 10, [rot.x, rot.y, rot.z]);
   const geometries: THREE.BufferGeometry[] = [];
   const root = new THREE.Group();
   root.name = s > 0 ? 'armR' : 'armL';

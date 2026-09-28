@@ -10,13 +10,27 @@ const browser = await launchBrowser();
 let failed = false;
 try {
   const { page, context: ctx2, problems } = await openPage(browser, `${server.url}/dev/audio.html?qa=1`, { width: 640, height: 360 });
-  await page.waitForFunction(() => !!window.__audioQa, null, { timeout: 60000 });
-  await page.waitForTimeout(1500);
+
+  // Otros agentes editan ficheros y Vite recarga la página: se reintenta al perder el contexto.
+  const ev = async (fn, arg) => {
+    for (let i = 0; i < 12; i++) {
+      try {
+        await page.waitForFunction(() => !!window.__audioQa, null, { timeout: 60000 });
+        return await page.evaluate(fn, arg);
+      } catch (e) {
+        const m = String(e);
+        if (!m.includes('context was destroyed') && !m.includes('navigation') && !m.includes('Target closed')) throw e;
+        await page.waitForTimeout(800);
+      }
+    }
+    throw new Error('la página se recargó demasiadas veces');
+  };
+  await ev(() => 1);
 
   // 1) Render offline de todas las recetas y bucles
-  const ids = await page.evaluate(() => window.__audioQa.ids());
+  const ids = await ev(() => window.__audioQa.ids());
   const rows = [];
-  for (const id of ids) rows.push(await page.evaluate((i) => window.__audioQa.render(i), id));
+  for (const id of ids) rows.push(await ev((i) => window.__audioQa.render(i), id));
   const pad = (s, n) => String(s).padEnd(n);
   const db = (v) => (20 * Math.log10(Math.max(1e-9, v))).toFixed(1);
   console.log(pad('sonido', 26) + pad('rms dB', 8) + pad('pico raw', 9) + pad('pico out', 9) + pad('dur', 6) + pad('esp', 6) + pad('nodos', 6) + 'estado');
@@ -31,16 +45,16 @@ try {
   console.log(`${rows.length} sonidos, ${rows.filter((r) => !r.ok).length} fallos`);
 
   // 2) Antes de unlock(): sin AudioContext, sin errores
-  await page.evaluate(() => window.__audioQa.emit(5));
-  const pre = await page.evaluate(() => window.__audioQa.info());
-  if (pre.ready || pre.errors) { console.log('FALLA: sonó o falló antes de unlock()', pre); failed = true; }
+  await ev(() => window.__audioQa.emit(5));
+  const pre = await ev(() => window.__audioQa.info());
+  if (pre.ready || pre.errors || pre.contexts) { console.log('FALLA: sonó o falló antes de unlock()', pre); failed = true; }
 
   // 3) Tras unlock(): estrés de eventos, sin errores y con voces acotadas
-  await page.evaluate(() => window.__audioQa.unlock());
-  await page.waitForTimeout(300);
-  await page.evaluate(() => window.__audioQa.emit(120));
+  await ev(() => window.__audioQa.unlock());
   await page.waitForTimeout(400);
-  const post = await page.evaluate(() => window.__audioQa.info());
+  await ev(() => window.__audioQa.emit(120));
+  await page.waitForTimeout(400);
+  const post = await ev(() => window.__audioQa.info());
   console.log('estado tras estrés:', JSON.stringify(post));
   if (!post.ready) { console.log('FALLA: contexto no está en marcha tras unlock()'); failed = true; }
   if (post.errors) { console.log('FALLA: errores de receta', post.lastError); failed = true; }

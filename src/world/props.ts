@@ -17,7 +17,7 @@ interface Part {
 }
 
 const CONTAINER_MATS: MaterialKey[] = ['containerRed', 'containerBlue', 'containerGreen', 'containerYellow', 'containerGrey'];
-const CAR_MATS: MaterialKey[] = ['containerGrey', 'rustMetal', 'containerBlue', 'containerRed', 'containerGreen', 'steelDark'];
+const CAR_MATS: MaterialKey[] = ['containerGrey', 'rustMetal', 'containerBlue'];
 
 /** Caja alineada con base en y0 centrada en (x,z). */
 function bx(b: Batch, x: number, z: number, sx: number, sz: number, y0: number, y1: number, tile: number, top = true, rot = 0): void {
@@ -30,7 +30,7 @@ function buildModel(type: PropType, tile: (m: MaterialKey) => number): Part[] {
   const spec = PROP_SPECS[type];
   switch (type) {
     case 'barrel': {
-      const a = P(['rustMetal', 'containerBlue', 'containerRed', 'containerYellow', 'steelDark']);
+      const a = P(['rustMetal', 'containerBlue', 'containerRed']);
       emitCyl(a.batch, { cx: 0, cz: 0, r: 0.3, rTop: 0.3, y0: 0, y1: 0.95, seg: 12, capTop: true }, t);
       for (const y of [0.15, 0.8]) emitCyl(a.batch, { cx: 0, cz: 0, r: 0.315, rTop: 0.315, y0: y, y1: y + 0.07, seg: 12, capTop: false }, t);
       return [a];

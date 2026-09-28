@@ -23,6 +23,8 @@ export interface WorldStats {
   drawCalls: number;
   triangles: number;
   colliders: number;
+  /** Desglose (ms): layout, colisión+nav, geometría. */
+  phases: { layout: number; nav: number; render: number };
 }
 
 /** WorldApi + extras opcionales para herramientas de desarrollo y QA. */
@@ -68,12 +70,14 @@ function buildWindows(windows: readonly WindowSpec[], ctx: GameContext, group: T
 export function createWorld(ctx: GameContext): World {
   const t0 = performance.now();
   const layout = generateLayout(WORLD.seed);
+  const tLayout = performance.now();
   const collision = new CollisionWorld(layout.colliders, layout.bounds, layout.ground, WORLD.hashCell);
   const nav = buildNav(layout.colliders, layout.bounds);
   const reach = floodReachable(nav, MAP.spawn.x, MAP.spawn.z);
   const covered = buildCovered(layout.colliders, nav, WORLD.nav.blockMaxY);
   const points = pickPoints(nav, reach, covered, layout.lootAnchors, layout.pois, layout.seed);
 
+  const tNav = performance.now();
   const group = new THREE.Group();
   group.name = 'world';
   const st = { meshes: 0, triangles: 0 };
@@ -106,6 +110,7 @@ export function createWorld(ctx: GameContext): World {
     drawCalls: st.meshes + props.meshes.length + win.meshes.length + (glows.mesh ? 1 : 0) + 2,
     triangles: st.triangles + props.triangles + layout.windows.length * 2,
     colliders: layout.colliders.length,
+    phases: { layout: tLayout - t0, nav: tNav - tLayout, render: performance.now() - tNav },
   };
 
   const world: World = {

@@ -10,10 +10,10 @@ import type { V3 } from './shadowSnap';
 
 /** Distancia (m) de la luna al centro del frustum de sombra. */
 const SHADOW_LIGHT_DISTANCE = 120;
-const MOON_INTENSITY = 2.7;
+const MOON_INTENSITY = 5.2;
 /** Sin reflejos de entorno la hemisférica hace de ambiente principal. */
-const AMBIENT_NO_ENV = 2.0;
-const AMBIENT_WITH_ENV = 0.8;
+const AMBIENT_NO_ENV = 3.2;
+const AMBIENT_WITH_ENV = 1.7;
 const ENV_INTENSITY = 1.0;
 
 export interface LightRig {
