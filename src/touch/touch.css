@@ -1,0 +1,269 @@
+/* DEAD SIGNAL — controles táctiles (overlay DOM). Prefijo tc-. La geometría (left/top/tamaño) la fija layout.ts por estilo en línea. */
+.tc-root {
+  --tc-fg: #e8f1fc;
+  --tc-dim: #8298b4;
+  --tc-accent: #5fe0b7;
+  --tc-danger: #ff5a4d;
+  --tc-warn: #ffb020;
+  --tc-info: #6fb4ff;
+  --tc-bg: rgba(8, 13, 24, 0.5);
+  --tc-line: rgba(232, 241, 252, 0.6);
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  z-index: 25;
+  pointer-events: none;
+  overflow: hidden;
+  color: var(--tc-fg);
+  font: 600 12px/1.25 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+.tc-root *, .tc-root *::before, .tc-root *::after { box-sizing: border-box; }
+.tc-root [hidden] { display: none !important; }
+.tc-root svg { display: block; pointer-events: none; }
+
+/* Sondeo de áreas seguras (no se ve): se lee su padding calculado. */
+.tc-probe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  visibility: hidden;
+  pointer-events: none;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
+/* Visibilidad por modo: off (nada) · paused (sólo ajustes) · system (pausa/mapa/ajustes) · full (todo). */
+.tc-root:not([data-mode="full"]) .tc-game { display: none !important; }
+.tc-root[data-mode="off"] .tc-sys { display: none !important; }
+.tc-root[data-mode="paused"] .tc-sys:not(.tc-gear) { display: none !important; }
+
+/* Fondo que recoge el joystick y la mirada (sólo en partida y sin modal). */
+.tc-surface { position: absolute; inset: 0; pointer-events: auto; touch-action: none; }
+
+/* ───── Joystick flotante ───── */
+.tc-ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.tc-ghost i {
+  position: absolute;
+  left: calc(var(--r) * -1px);
+  top: calc(var(--r) * -1px);
+  width: calc(var(--r) * 2px);
+  height: calc(var(--r) * 2px);
+  border-radius: 50%;
+  border: 2px dashed rgba(232, 241, 252, 0.32);
+  background: rgba(8, 13, 24, 0.14);
+}
+.tc-ghost i::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34%;
+  height: 34%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(232, 241, 252, 0.16);
+}
+.tc-stick { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; will-change: transform; }
+.tc-stick-base {
+  position: absolute;
+  left: calc(var(--r) * -1px);
+  top: calc(var(--r) * -1px);
+  width: calc(var(--r) * 2px);
+  height: calc(var(--r) * 2px);
+  border-radius: 50%;
+  border: 2px solid rgba(232, 241, 252, 0.55);
+  background: radial-gradient(circle, rgba(232, 241, 252, 0.06) 0%, rgba(232, 241, 252, 0.16) 100%);
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+.tc-stick-thumb {
+  position: absolute;
+  left: calc(var(--r) * -0.4px);
+  top: calc(var(--r) * -0.4px);
+  width: calc(var(--r) * 0.8px);
+  height: calc(var(--r) * 0.8px);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(232, 241, 252, 0.34);
+  border: 2px solid rgba(232, 241, 252, 0.85);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  will-change: transform;
+}
+.tc-stick-thumb svg { width: 56%; height: 56%; opacity: 0; color: #04140e; }
+.tc-stick.run .tc-stick-base { border-color: var(--tc-accent); box-shadow: inset 0 0 14px rgba(95, 224, 183, 0.3), 0 0 14px rgba(95, 224, 183, 0.35); }
+.tc-stick.run .tc-stick-thumb { background: var(--tc-accent); border-color: #eafff7; }
+.tc-stick.run .tc-stick-thumb svg { opacity: 1; }
+
+/* ───── Botones ───── */
+.tc-btn {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  pointer-events: auto;
+  touch-action: none;
+  color: var(--tc-fg);
+  background: var(--tc-bg);
+  border: 2px solid var(--tc-line);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+  cursor: default;
+}
+.tc-btn svg { width: 54%; height: 54%; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); }
+.tc-btn.down { transform: scale(0.9); background: rgba(95, 224, 183, 0.34); border-color: var(--tc-accent); color: #fff; }
+.tc-btn.active { background: rgba(95, 224, 183, 0.26); border-color: var(--tc-accent); color: var(--tc-accent); }
+.tc-btn.busy { border-style: dashed; border-color: var(--tc-warn); color: var(--tc-warn); }
+
+.tc-fire { color: #ffe2df; background: rgba(150, 26, 20, 0.44); border-color: rgba(255, 110, 96, 0.95); }
+.tc-fire svg { width: 50%; height: 50%; }
+.tc-fire.down { background: rgba(255, 90, 77, 0.62); border-color: #ffb3ab; color: #fff; }
+.tc-grenade svg { color: var(--tc-warn); }
+.tc-plate svg { color: var(--tc-info); }
+.tc-btn.down svg { color: #fff; }
+.tc-sys { background: rgba(8, 13, 24, 0.62); border-color: rgba(232, 241, 252, 0.5); }
+.tc-sys svg { width: 56%; height: 56%; }
+
+/* Contador (granadas, placas, arma activa). */
+.tc-badge {
+  position: absolute;
+  right: -3px;
+  top: -3px;
+  min-width: 1.6em;
+  padding: 0.05em 0.35em;
+  border-radius: 999px;
+  text-align: center;
+  font: 800 calc(var(--s) * 0.22px)/1.25 system-ui, sans-serif;
+  color: var(--tc-fg);
+  background: rgba(8, 13, 24, 0.94);
+  border: 1px solid rgba(232, 241, 252, 0.6);
+  pointer-events: none;
+}
+.tc-badge[data-zero="1"] { color: var(--tc-danger); border-color: var(--tc-danger); }
+
+/* Interactuar: anillo de progreso y etiqueta (a un lado, sin tapar la vista). */
+.tc-interact { color: var(--tc-accent); background: rgba(6, 36, 28, 0.7); border-color: var(--tc-accent); box-shadow: 0 0 14px rgba(95, 224, 183, 0.4), 0 2px 10px rgba(0, 0, 0, 0.5); }
+.tc-interact.down { background: rgba(95, 224, 183, 0.4); }
+.tc-ring { position: absolute; inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px); transform: rotate(-90deg); pointer-events: none; }
+.tc-ring circle { fill: none; stroke-width: 3.2; }
+.tc-ring .bg { stroke: rgba(232, 241, 252, 0.16); }
+.tc-ring .fg { stroke: var(--tc-accent); stroke-linecap: round; }
+.tc-il {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  gap: 1px;
+  max-width: 42vw;
+  padding: 5px 10px;
+  border-radius: 6px;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--tc-fg);
+  background: rgba(8, 13, 24, 0.82);
+  border: 1px solid rgba(95, 224, 183, 0.6);
+  pointer-events: none;
+}
+.tc-il b { overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 700; }
+.tc-il i { font-style: normal; font-size: 10px; letter-spacing: 0.14em; color: var(--tc-accent); }
+.tc-lefty .tc-il { right: auto; left: calc(100% + 10px); text-align: left; }
+
+/* ───── Indicador de FPS (opcional) ───── */
+.tc-fps {
+  position: absolute;
+  left: calc(env(safe-area-inset-left, 0px) + 6px);
+  top: 4px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font: 600 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: #9dffd6;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+/* ───── Aviso de orientación ───── */
+.tc-rotate {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  background: #070b14;
+  pointer-events: auto;
+  touch-action: none;
+}
+.tc-rotate svg { width: 84px; height: 84px; color: var(--tc-accent); animation: tc-rot 2.4s ease-in-out infinite; }
+.tc-rotate h2 { margin: 0; font-size: 22px; letter-spacing: 0.04em; }
+.tc-rotate p { margin: 0; font-size: 14px; font-weight: 500; color: var(--tc-dim); }
+@keyframes tc-rot {
+  0%, 18% { transform: rotate(0deg); }
+  58%, 100% { transform: rotate(-90deg); }
+}
+
+/* ───── Panel de ajustes táctiles ───── */
+.tc-panel-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  background: rgba(4, 7, 14, 0.62);
+  pointer-events: auto;
+  touch-action: none;
+}
+.tc-panel {
+  width: min(380px, 88%);
+  max-height: 94%;
+  overflow: auto;
+  padding: 10px 16px 12px;
+  border-radius: 10px;
+  color: var(--tc-fg);
+  background: rgba(9, 15, 28, 0.97);
+  border: 1px solid rgba(232, 241, 252, 0.28);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  touch-action: pan-y;
+}
+.tc-panel h2 { margin: 2px 0 6px; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tc-accent); }
+.tc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; border-top: 1px solid rgba(232, 241, 252, 0.12); font-size: 14px; font-weight: 600; }
+.tc-row small { display: block; margin-top: 1px; font-size: 11px; font-weight: 500; color: var(--tc-dim); }
+.tc-switch { position: relative; flex: none; width: 48px; height: 28px; padding: 0; border: 0; border-radius: 14px; background: rgba(232, 241, 252, 0.22); cursor: pointer; }
+.tc-switch::after { content: ""; position: absolute; left: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform 0.12s; }
+.tc-switch[aria-checked="true"] { background: var(--tc-accent); }
+.tc-switch[aria-checked="true"]::after { transform: translateX(20px); }
+.tc-close {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 8px;
+  border: 1px solid rgba(232, 241, 252, 0.4);
+  border-radius: 8px;
+  color: var(--tc-fg);
+  background: rgba(232, 241, 252, 0.1);
+  font: 700 14px system-ui, sans-serif;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tc-rotate svg { animation: none; transform: rotate(-90deg); }
+}
