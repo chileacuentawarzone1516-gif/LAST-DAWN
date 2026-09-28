@@ -4,6 +4,7 @@ import {
   CombatMeter, DEFAULT_LIMITER, StrideTracker, VariationPicker, VoiceLimiter, adsrAt, adsrBreakpoints, airCutoff, analyzeSignal,
   dopplerRatio, fillNoise, generateIr, heartbeatParams, hzToMidi, holdTickFreq, holdTickInterval, midiToHz, musicIntensity,
   musicLayers, noteToHz, noteToMidi, pulseBpm, rangeFade, saturationCurve, scaleDegreeToMidi, softClipCurve, SCALES,
+  DEFAULT_IR, LITE_IR, LITE_LIMITER, NEUTRAL_VOICE, playerVoice,
 } from '../src/audio/pure';
 
 describe('notas y frecuencias', () => {
@@ -206,5 +207,51 @@ describe('ruido, IR y análisis', () => {
     expect(s.nan).toBe(1);
     expect(s.peak).toBe(0.5);
     expect(s.audibleS).toBeCloseTo(0.101, 3);
+  });
+});
+
+describe('voz del jugador por género', () => {
+  const semis = (r: number): number => 12 * Math.log2(r);
+  it('la voz femenina es +4..6 semitonos más aguda con formantes desplazados y menos áspera', () => {
+    const rng = createRng(5);
+    for (let i = 0; i < 300; i++) {
+      const f = playerVoice('female', rng);
+      const m = playerVoice('male', rng);
+      expect(semis(f.pitch)).toBeGreaterThanOrEqual(4 - 1e-9);
+      expect(semis(f.pitch)).toBeLessThanOrEqual(6 + 1e-9);
+      expect(semis(m.pitch)).toBeGreaterThanOrEqual(-1 - 1e-9);
+      expect(semis(m.pitch)).toBeLessThanOrEqual(1 + 1e-9);
+      expect(f.formantScale).toBeGreaterThan(m.formantScale);
+      expect(f.rasp).toBeLessThan(m.rasp);
+      expect(f.breathiness).toBeGreaterThan(m.breathiness);
+    }
+  });
+  it('es determinista con la misma semilla, varía entre llamadas y tolera géneros desconocidos', () => {
+    expect(playerVoice('female', createRng(1))).toEqual(playerVoice('female', createRng(1)));
+    const r = createRng(2);
+    expect(playerVoice('female', r).pitch).not.toBe(playerVoice('female', r).pitch);
+    expect(semis(playerVoice('otro', createRng(3)).pitch)).toBeLessThanOrEqual(1);
+    expect(semis(playerVoice(undefined, createRng(3)).pitch)).toBeGreaterThanOrEqual(-1);
+    expect(NEUTRAL_VOICE.pitch).toBe(1);
+  });
+});
+
+describe('modo ligero (móvil)', () => {
+  it('el limitador ligero tiene ~24 voces y topes por categoría menores o iguales', () => {
+    expect(LITE_LIMITER.total).toBe(24);
+    for (const [k, v] of Object.entries(DEFAULT_LIMITER.categories)) {
+      const lite = LITE_LIMITER.categories[k]!;
+      expect(lite.max).toBeLessThanOrEqual(v.max);
+      expect(lite.max).toBeGreaterThanOrEqual(1);
+    }
+    const l = new VoiceLimiter(LITE_LIMITER);
+    for (let i = 0; i < 100; i++) l.request({ key: `k${i}`, category: 'ui', priority: 50, dur: 10, now: i * 0.01 });
+    expect(l.count()).toBeLessThanOrEqual(24);
+  });
+  it('la IR ligera es más corta y sigue siendo finita', () => {
+    expect(LITE_IR.seconds).toBeLessThan(DEFAULT_IR.seconds);
+    const ir = generateIr(8000, LITE_IR);
+    expect(ir.left.length).toBeLessThan(generateIr(8000).left.length);
+    expect(analyzeSignal([ir.left, ir.right], 8000).nan).toBe(0);
   });
 });

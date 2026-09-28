@@ -4,10 +4,11 @@
  */
 import type { SurfaceKind } from '../../core/types';
 import { between, chance, vary } from '../pure';
-import { formantVoice, noiseBurst, partials, pingScatter, scatter, tone } from '../synth';
-import type { Recipe, RecipeDef } from '../types';
+import { biquad, formantVoice, gainNode, link, noiseBurst, noiseSrc, osc, partials, pingScatter, ramp, scatter, tone } from '../synth';
+import type { Recipe, RecipeDef, RecipeParams } from '../types';
 import { defineRecipe, mechClick, rasp, thunk } from './define';
 
+export { effort };
 export const SURFACES: readonly SurfaceKind[] = ['concrete', 'metal', 'dirt', 'asphalt', 'flesh', 'glass', 'wood', 'water'];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -68,6 +69,7 @@ function stepRecipe(surface: SurfaceKind): Recipe {
 const playerJump: Recipe = (ac, dest, t0, p) => {
   rasp(ac, dest, t0, p.rng, { dur: 0.07, peak: 0.08, f0: 900, f1: 1700, q: 0.8 });
   thunk(ac, dest, t0 + 0.02, p.rng, { peak: 0.15, f: 90, dur: 0.05, noise: false });
+  effort(ac, dest, t0 + 0.01, p, { peak: 0.09, dur: 0.16 });
 };
 
 /** Aterrizaje: `intensity` 0..1 según el impacto. */
@@ -77,22 +79,56 @@ const playerLand: Recipe = (ac, dest, t0, p) => {
   tone(ac, dest, t0, { f0: 115 * p.pitch, f1: 42, dur: 0.14 + 0.08 * I, peak: 0.28 + 0.4 * I, attack: 0.001, sat: 0.15 });
   noiseBurst(ac, dest, t0, { kind: 'pink', dur: 0.1 + 0.05 * I, peak: 0.18 + 0.2 * I, attack: 0.002, type: 'lowpass', f0: 900, f1: 300, rng: r });
   scatter(ac, dest, t0 + 0.02, { count: 4 + Math.round(4 * I), span: 0.12, peak: 0.06 * I, fLo: 1500, fHi: 4200, q: 3, hitDur: 0.025, rng: r });
+  if (I > 0.35) effort(ac, dest, t0 + 0.02, p, { peak: 0.12 * I, dur: 0.16 + 0.1 * I, f0: 120 });
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Daño al jugador
 // ─────────────────────────────────────────────────────────────────────────────
-/** Gruñido corto del jugador (voz masculina grave con aire). ~19 nodos. */
-function grunt(ac: BaseAudioContext, dest: AudioNode, t: number, r: () => number, o: { peak: number; f0: number; f1: number; dur: number; breath?: number }): void {
+/**
+ * Voz de esfuerzo/daño del jugador, parametrizada por género (`p.voice`): fundamental, escala de
+ * formantes, aire y aspereza. Cada llamada añade variación aleatoria. ~19 nodos.
+ */
+function grunt(ac: BaseAudioContext, dest: AudioNode, t: number, p: RecipeParams, o: { peak: number; f0: number; f1: number; dur: number; breath?: number; open?: number }): void {
+  const r = p.rng;
+  const v = p.voice;
+  const fs = v.formantScale * vary(r, 1, 0.04);
+  const pitch = v.pitch * vary(r, 1, 0.035);
   formantVoice(ac, dest, t, {
-    dur: o.dur, peak: o.peak, f0: [o.f0 * vary(r, 1, 0.05), o.f1], wave: 'sawtooth', sat: 0.12,
+    dur: o.dur * vary(r, 1, 0.08), peak: o.peak * vary(r, 1, 0.1),
+    f0: [o.f0 * pitch * p.pitch, o.f1 * pitch * p.pitch], wave: 'sawtooth', sat: 0.12 * v.rasp,
     formants: [
-      { from: 650, to: 520, q: 5, gain: 0.9 },
-      { from: 1100, to: 950, q: 7, gain: 0.5 },
-      { from: 2500, to: 2400, q: 8, gain: 0.18 },
+      { from: 650 * fs, to: 520 * fs, q: 5, gain: 0.9 },
+      { from: 1100 * fs, to: 950 * fs, q: 7, gain: 0.5 },
+      { from: 2500 * fs, to: 2400 * fs, q: 8, gain: 0.18 },
     ],
-    vib: { rate: 22, depth: 0.012 }, breath: o.breath ?? 0.2, env: [[0, 0], [0.1, 1], [0.55, 0.7], [1, 0]], rng: r,
+    vib: { rate: 22 * vary(r, 1, 0.15), depth: 0.012 * v.rasp }, breath: (o.breath ?? 0.2) * v.breathiness,
+    env: [[0, 0], [0.1, 1], [0.55, 0.7], [1, 0]], rng: r,
   });
+}
+
+/** Esfuerzo breve (salto, lanzamiento, aterrizaje ligero): soplo con un toque de voz. ~10 nodos. */
+function effort(ac: BaseAudioContext, dest: AudioNode, t: number, p: RecipeParams, o: { peak: number; dur: number; f0?: number }): void {
+  const v = p.voice;
+  const fs = v.formantScale;
+  const f0 = (o.f0 ?? 135) * v.pitch * vary(p.rng, 1, 0.05);
+  const end = t + o.dur + 0.03;
+  const src = osc(ac, 'sawtooth', f0, t, end);
+  src.frequency.linearRampToValueAtTime(f0 * 0.85, t + o.dur);
+  const voiced = gainNode(ac, 0.35);
+  const air = gainNode(ac, 0.9 * v.breathiness);
+  const ns = noiseSrc(ac, 'white', t, o.dur + 0.05, p.rng);
+  const mix = gainNode(ac, 1);
+  link(src, voiced, mix);
+  link(ns, air, mix);
+  const out = gainNode(ac, 1);
+  ramp(out.gain, t, [[0, 0], [o.dur * 0.18, o.peak], [o.dur * 0.6, o.peak * 0.55], [o.dur, 0]]);
+  for (const [f, q, g] of [[600 * fs, 4, 1], [1300 * fs, 6, 0.5]] as const) {
+    const bp = biquad(ac, 'bandpass', f, q);
+    mix.connect(bp);
+    link(bp, gainNode(ac, g), out);
+  }
+  out.connect(dest);
 }
 
 const hurtMelee: Recipe = (ac, dest, t0, p) => {
@@ -100,7 +136,7 @@ const hurtMelee: Recipe = (ac, dest, t0, p) => {
   const I = 0.55 + 0.45 * p.intensity;
   thunk(ac, dest, t0, r, { peak: 0.42 * I, f: 105, dur: 0.09 });
   noiseBurst(ac, dest, t0, { kind: 'pink', dur: 0.09, peak: 0.2 * I, attack: 0.002, type: 'lowpass', f0: 1000, f1: 350, rng: r });
-  grunt(ac, dest, t0 + 0.02, r, { peak: 0.3 * I, f0: 128 * p.pitch, f1: 92, dur: 0.24 });
+  grunt(ac, dest, t0 + 0.02, p, { peak: 0.3 * I, f0: 128, f1: 92, dur: 0.24 });
 };
 
 const hurtArmor: Recipe = (ac, dest, t0, p) => {
@@ -109,7 +145,7 @@ const hurtArmor: Recipe = (ac, dest, t0, p) => {
   thunk(ac, dest, t0, r, { peak: 0.46 * I, f: 88, dur: 0.11 });
   partials(ac, dest, t0, { f: 210 * p.pitch, ratios: [1, 2.5, 4.2], decay: 0.17, peak: 0.16 * I });
   scatter(ac, dest, t0 + 0.01, { count: 5, span: 0.1, peak: 0.08 * I, fLo: 1800, fHi: 4200, q: 2.5, hitDur: 0.02, rng: r });
-  grunt(ac, dest, t0 + 0.03, r, { peak: 0.16 * I, f0: 118 * p.pitch, f1: 90, dur: 0.2, breath: 0.1 });
+  grunt(ac, dest, t0 + 0.03, p, { peak: 0.16 * I, f0: 118, f1: 90, dur: 0.2, breath: 0.1 });
 };
 
 const hurtSpit: Recipe = (ac, dest, t0, p) => {
@@ -117,14 +153,14 @@ const hurtSpit: Recipe = (ac, dest, t0, p) => {
   noiseBurst(ac, dest, t0, { kind: 'pink', dur: 0.1, peak: 0.28, attack: 0.002, type: 'lowpass', f0: 1400, f1: 400, rng: r });
   noiseBurst(ac, dest, t0 + 0.02, { dur: 0.42, peak: 0.13, attack: 0.02, type: 'highpass', f0: 3200, f1: 5200, q: 0.6, rng: r });
   pingScatter(ac, dest, t0 + 0.03, { count: 6, span: 0.35, peak: 0.05, fLo: 600, fHi: 1700, hitDur: 0.05, bias: 1.4, rng: r });
-  grunt(ac, dest, t0 + 0.03, r, { peak: 0.22, f0: 150 * p.pitch, f1: 105, dur: 0.22 });
+  grunt(ac, dest, t0 + 0.03, p, { peak: 0.22, f0: 150, f1: 105, dur: 0.22 });
 };
 
 const hurtHeavy: Recipe = (ac, dest, t0, p) => {
   const r = p.rng;
   tone(ac, dest, t0, { f0: 78, f1: 34, dur: 0.32, peak: 0.6, attack: 0.002, sat: 0.25 });
   noiseBurst(ac, dest, t0, { kind: 'pink', dur: 0.26, peak: 0.3, attack: 0.002, type: 'lowpass', f0: 700, f1: 220, rng: r });
-  grunt(ac, dest, t0 + 0.03, r, { peak: 0.34, f0: 135 * p.pitch, f1: 78, dur: 0.34, breath: 0.35 });
+  grunt(ac, dest, t0 + 0.03, p, { peak: 0.34, f0: 135, f1: 78, dur: 0.34, breath: 0.35 });
   tone(ac, dest, t0 + 0.04, { f0: 3400, dur: 0.7, peak: 0.028, attack: 0.02, curve: 'exp' });
 };
 
@@ -134,7 +170,7 @@ const hurtToxic: Recipe = (ac, dest, t0, p) => {
   noiseBurst(ac, dest, t0, { dur: 0.3, peak: 0.1, attack: 0.02, type: 'highpass', f0: 2800, rng: r });
   for (let i = 0; i < 2; i++) {
     noiseBurst(ac, dest, t0 + 0.04 + i * 0.16, { kind: 'pink', dur: 0.13, peak: 0.2, attack: 0.008, type: 'bandpass', f0: 900 * vary(r, 1, 0.1), f1: 500, q: 2, rng: r });
-    tone(ac, dest, t0 + 0.04 + i * 0.16, { type: 'sawtooth', f0: 150, f1: 95, dur: 0.12, peak: 0.07, attack: 0.008, lp: 900 });
+    tone(ac, dest, t0 + 0.04 + i * 0.16, { type: 'sawtooth', f0: 150 * p.voice.pitch, f1: 95 * p.voice.pitch, dur: 0.12, peak: 0.07, attack: 0.008, lp: 900 });
   }
 };
 
@@ -144,18 +180,20 @@ const hurtFall: Recipe = (ac, dest, t0, p) => {
   tone(ac, dest, t0, { f0: 95, f1: 42, dur: 0.18, peak: 0.5 * I, attack: 0.001, sat: 0.2 });
   noiseBurst(ac, dest, t0, { kind: 'pink', dur: 0.13, peak: 0.25 * I, attack: 0.002, type: 'lowpass', f0: 800, f1: 260, rng: r });
   scatter(ac, dest, t0 + 0.005, { count: 3, span: 0.06, peak: 0.14 * I, fLo: 1500, fHi: 2400, q: 3, hitDur: 0.015, rng: r });
-  grunt(ac, dest, t0 + 0.04, r, { peak: 0.22 * I, f0: 150, f1: 80, dur: 0.3, breath: 0.55 });
+  grunt(ac, dest, t0 + 0.04, p, { peak: 0.22 * I, f0: 150, f1: 80, dur: 0.3, breath: 0.55 });
 };
 
 const playerDeath: Recipe = (ac, dest, t0, p) => {
   const r = p.rng;
   tone(ac, dest, t0, { f0: 100, f1: 30, dur: 0.6, peak: 0.6, attack: 0.004, sat: 0.2 });
   noiseBurst(ac, dest, t0, { kind: 'brown', dur: 0.9, peak: 0.5, attack: 0.01, type: 'lowpass', f0: 380, f1: 100, rng: r });
+  const v = p.voice;
   formantVoice(ac, dest, t0 + 0.15, {
-    dur: 0.9, peak: 0.12, f0: [110, 70], wave: 'sawtooth', breath: 0.9,
-    formants: [{ from: 600, to: 400, q: 4, gain: 0.8 }, { from: 1000, to: 800, q: 6, gain: 0.4 }],
+    dur: 0.9, peak: 0.12, f0: [110 * v.pitch, 70 * v.pitch], wave: 'sawtooth', breath: 0.9 * v.breathiness,
+    formants: [{ from: 600 * v.formantScale, to: 400 * v.formantScale, q: 4, gain: 0.8 }, { from: 1000 * v.formantScale, to: 800 * v.formantScale, q: 6, gain: 0.4 }],
     env: [[0, 0], [0.2, 1], [1, 0]], rng: r,
   });
+  grunt(ac, dest, t0 + 0.02, p, { peak: 0.2, f0: 150, f1: 70, dur: 0.4, breath: 0.4 });
   tone(ac, dest, t0 + 0.3, { f0: 330, f1: 110, dur: 1.1, peak: 0.05, attack: 0.05, lp: 1200, curve: 'exp' });
 };
 

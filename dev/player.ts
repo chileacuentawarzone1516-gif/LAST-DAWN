@@ -245,3 +245,95 @@ setInterval(() => {
   hud.textContent = `${s ? `${s.id} ${s.mag}/${s.reserve}` : '-'} | hp ${p.hp.toFixed(0)} arm ${p.armor.toFixed(0)} placas ${p.plates} gran ${p.grenades} | spread ${p.spread.toFixed(2)} | ` +
     `${p.aiming ? 'ADS ' : ''}${p.sprinting ? 'RUN ' : ''}${p.crouched ? 'CROUCH ' : ''}${p.reloading ? 'RELOAD ' : ''}${p.usingPlate ? 'PLATE ' : ''}| hit: ${last} | fps ${ctx.engine.stats.fps.toFixed(0)}`;
 }, 100);
+
+// ── Autocomprobación de la respuesta al disparar (window.__playerCheck) ───────────────────────
+interface CheckResult {
+  name: string;
+  ok: boolean;
+  detail: string;
+}
+
+declare global {
+  interface Window {
+    __playerCheck?: () => CheckResult[];
+  }
+}
+
+/**
+ * Falla si disparar frena/detiene el movimiento o retrasa el primer disparo (mismo criterio que
+ * tests/player.fire.test.ts, pero con el juego real de esta página: mundo del campo de tiro y motor).
+ */
+function runChecks(): CheckResult[] {
+  const out: CheckResult[] = [];
+  const dt = 1 / 60;
+  const frames = (n: number): void => { for (let i = 0; i < n; i++) game.update(dt); };
+  const release = (): void => {
+    for (const a of ['forward', 'back', 'left', 'right', 'sprint', 'fire', 'aim', 'jump'] as const) ctx.input.inject(a, false);
+    ctx.input.setStick(0, 0);
+  };
+  const reset = (id: WeaponId): void => {
+    release();
+    const def = WEAPONS[id];
+    ctx.state.player.slots[def.slot] = { ...createWeaponSlot(id, 3), mag: 9999 };
+    ctx.state.player.activeSlot = def.slot;
+    ctx.bus.emit('loadout:changed', {});
+    ctx.player.teleport(20, 190, 0);
+    frames(40);
+  };
+  const shots = (): number => ctx.state.match.shotsFired;
+  const dist = (n: number): number => {
+    const p = ctx.player.position;
+    const z0 = p.z;
+    const x0 = p.x;
+    frames(n);
+    return Math.hypot(p.x - x0, p.z - z0);
+  };
+
+  for (const [label, keys] of [['quieto', []], ['caminando', ['forward']], ['de lado', ['right']], ['corriendo', ['forward', 'sprint']]] as const) {
+    reset('carbine');
+    for (const k of keys) ctx.input.inject(k, true);
+    frames(30);
+    const s0 = shots();
+    ctx.input.inject('fire', true);
+    game.update(dt);
+    out.push({ name: `primer disparo mismo frame · ${label}`, ok: shots() === s0 + 1, detail: `${shots() - s0} disparo(s) en el frame de la pulsación` });
+  }
+
+  reset('smg');
+  ctx.input.inject('right', true);
+  frames(30);
+  const a = dist(45);
+  reset('smg');
+  ctx.input.inject('right', true);
+  frames(30);
+  ctx.input.inject('fire', true);
+  const s1 = shots();
+  const b = dist(45);
+  out.push({ name: 'disparar no frena el movimiento (de lado)', ok: b >= a * 0.999 && shots() > s1, detail: `sin disparar ${a.toFixed(3)} m · disparando ${b.toFixed(3)} m` });
+
+  reset('carbine');
+  ctx.input.inject('forward', true);
+  frames(20);
+  const s2 = shots();
+  ctx.input.inject('fire', true);
+  ctx.input.inject('fire', false);
+  game.update(dt);
+  out.push({ name: 'clic más corto que un frame dispara', ok: shots() === s2 + 1, detail: `${shots() - s2} disparo(s)` });
+
+  reset('carbine');
+  ctx.input.inject('forward', true);
+  ctx.input.inject('sprint', true);
+  frames(40);
+  const s3 = shots();
+  ctx.input.inject('fire', true);
+  game.update(dt);
+  out.push({ name: 'correr + disparar: sprint termina y el disparo sale ya', ok: shots() === s3 + 1 && !ctx.state.player.sprinting, detail: `sprinting=${ctx.state.player.sprinting}` });
+  release();
+  return out;
+}
+
+if (new URLSearchParams(window.location.search).get('qa') === '1') window.__playerCheck = runChecks;
+btn('autocomprobar', () => {
+  const r = runChecks();
+  last = r.every((c) => c.ok) ? 'CHECK OK' : `CHECK FALLA: ${r.filter((c) => !c.ok).map((c) => c.name).join(', ')}`;
+});

@@ -28,6 +28,8 @@ export interface WeaponHost {
   readonly pitchVel: number;
   /** Patada de cámara por disparo (grados) con topes acumulados. */
   kick(pitchDeg: number, yawDeg: number, maxP: number, maxY: number): void;
+  /** Microimpulso visual instantáneo de cámara (grados, no altera la puntería). */
+  punch(pitchDeg: number): void;
   /** Sacudida de cámara (explosiones). */
   shake(amount: number): void;
 }

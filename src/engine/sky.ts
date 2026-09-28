@@ -30,7 +30,6 @@ void main() {
 `;
 
 const SKY_FRAG = /* glsl */ `
-precision highp float;
 varying vec3 vDir;
 uniform float uTime;
 uniform sampler2D tNoise;

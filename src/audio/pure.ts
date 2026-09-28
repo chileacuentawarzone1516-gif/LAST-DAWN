@@ -737,3 +737,66 @@ export function analyzeSignal(channels: readonly Float32Array[], sampleRate: num
 
 /** Convierte amplitud lineal a dBFS. */
 export const toDb = (v: number): number => 20 * Math.log10(Math.max(1e-9, v));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Voz del jugador por género
+// ─────────────────────────────────────────────────────────────────────────────
+export type Gender = 'male' | 'female';
+
+/** Parámetros de timbre con los que se parametrizan las recetas de esfuerzo/daño del jugador. */
+export interface PlayerVoice {
+  /** Multiplicador de la frecuencia fundamental. */
+  pitch: number;
+  /** Multiplicador de las frecuencias de los formantes (tracto vocal más corto = más agudo). */
+  formantScale: number;
+  /** Multiplicador de aire/soplo (más = voz más «aireada»). */
+  breathiness: number;
+  /** Multiplicador de aspereza (saturación y rugosidad). */
+  rasp: number;
+}
+
+export const NEUTRAL_VOICE: PlayerVoice = { pitch: 1, formantScale: 1, breathiness: 1, rasp: 1 };
+
+/** Rangos por género: `semitones` de la fundamental respecto a la voz masculina base. */
+export const VOICE_TABLE: Record<Gender, {
+  semitones: readonly [number, number];
+  formantScale: readonly [number, number];
+  breathiness: readonly [number, number];
+  rasp: readonly [number, number];
+}> = {
+  male: { semitones: [-1, 1], formantScale: [0.97, 1.03], breathiness: [0.9, 1.1], rasp: [0.95, 1.1] },
+  female: { semitones: [4, 6], formantScale: [1.12, 1.2], breathiness: [1.25, 1.55], rasp: [0.55, 0.75] },
+};
+
+/** Voz del jugador con variación aleatoria dentro de los rangos de su género. */
+export function playerVoice(gender: Gender | string | undefined, rng: Rng): PlayerVoice {
+  const t = VOICE_TABLE[gender === 'female' ? 'female' : 'male'];
+  const pick = (r: readonly [number, number]): number => r[0] + (r[1] - r[0]) * rng();
+  return {
+    pitch: semitoneRatio(pick(t.semitones)),
+    formantScale: pick(t.formantScale),
+    breathiness: pick(t.breathiness),
+    rasp: pick(t.rasp),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Modo ligero (móvil): topes de polifonía y reverb más cortos
+// ─────────────────────────────────────────────────────────────────────────────
+/** Reduce los topes del limitador (total y por categoría) por un factor 0..1. */
+export function scaleLimiter(cfg: LimiterConfig, factor: number, total?: number): LimiterConfig {
+  const categories: Record<string, CategoryLimit> = {};
+  for (const [k, v] of Object.entries(cfg.categories)) categories[k] = { ...v, max: Math.max(1, Math.round(v.max * factor)) };
+  return {
+    ...cfg,
+    total: total ?? Math.max(4, Math.round(cfg.total * factor)),
+    categories,
+    fallback: { ...cfg.fallback, max: Math.max(1, Math.round(cfg.fallback.max * factor)) },
+  };
+}
+
+/** Configuración del limitador para móvil: ~24 voces. */
+export const LITE_LIMITER: LimiterConfig = scaleLimiter(DEFAULT_LIMITER, 0.7, 24);
+
+/** IR más corta y con menos reflexiones (menos coste de convolución). */
+export const LITE_IR: IrSpec = { seconds: 1.3, decayS: 1.0, preDelayS: 0.01, dampingHz: [7000, 1600], earlyReflections: 6, seed: 0x5eed };

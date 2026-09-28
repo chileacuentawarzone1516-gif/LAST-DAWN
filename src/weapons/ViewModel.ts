@@ -6,10 +6,12 @@ import * as THREE from 'three';
 import { WEAPON_HANDLING } from '../config';
 import type { WeaponDef } from '../config';
 import type { GameContext } from '../core/context';
-import type { Vec3, WeaponId } from '../core/types';
+import type { PlayerProfile, Vec3, WeaponId } from '../core/types';
 import { clamp, clamp01, damp, lerp } from '../core/util';
 import { easeAds } from '../rules/weapons';
+import { resolveArmLook } from './armLook';
 import { CasingPool, MuzzleFlash } from './effects';
+import { ArmLook } from './look';
 import { createArm, createGrenadeProp, createPlateProp, createWeaponModel } from './models';
 import type { ArmRig, PropModel, WeaponModel } from './models';
 
@@ -33,7 +35,6 @@ export interface ViewFrame {
   actionT: number;
   actionDur: number;
   actionWindup: number;
-  visible: boolean;
   dead: boolean;
 }
 
@@ -41,7 +42,7 @@ export function createViewFrame(): ViewFrame {
   return {
     ads: 0, sprint01: 0, airborne: false, vy: 0, bobPhase: 0, bobAmp: 0, yawVel: 0, pitchVel: 0, mag: 0,
     reloadActive: false, reloadKind: 0, reloadU: 0, reloadFirst: true, action: 0, actionT: 0, actionDur: 1,
-    actionWindup: 0.3, visible: true, dead: false,
+    actionWindup: 0.3, dead: false,
   };
 }
 
@@ -97,6 +98,8 @@ export class ViewModel {
   private rEnv = 0;
   private spent = 0;
   private lastReloadU = 0;
+  private readonly look = new ArmLook();
+  private visibleFlag = true;
   private swayX = 0;
   private swayY = 0;
 
@@ -114,6 +117,9 @@ export class ViewModel {
     this.root.add(this.freeR.root, this.freeL.root, this.grenade.root, this.plate.root, this.flashLight);
     this.freeR.root.visible = this.freeL.root.visible = this.grenade.root.visible = this.plate.root.visible = false;
     this.casings = new CasingPool(this.root, m);
+    for (const a of [this.armR, this.armL, this.freeR, this.freeL]) this.look.register(a.root);
+    this.look.apply(resolveArmLook(ctx.state.profile));
+    this.setVisible(ctx.state.flow !== 'title');
     for (const a of [this.armR, this.armL, this.freeR, this.freeL]) this.noCull(a.root);
     this.noCull(this.grenade.root);
     this.noCull(this.plate.root);
@@ -196,6 +202,24 @@ export class ViewModel {
     }
   }
 
+  /** Muestra/oculta todo el viewmodel (oculto en el título, donde se ve el maniquí de personalización). */
+  setVisible(v: boolean): void {
+    this.visibleFlag = v;
+    this.root.visible = v;
+  }
+
+  /** Aplica la apariencia del perfil (mangas, guantes, piel, finura) sin reconstruir nada. */
+  applyProfile(profile: PlayerProfile): void {
+    this.look.apply(resolveArmLook(profile));
+  }
+
+  /** Microimpulso instantáneo al apretar el gatillo. */
+  onTrigger(): void {
+    this.kz.v += 0.45;
+    this.kp.v += 0.7;
+    this.hammerPulse = 0.03;
+  }
+
   onDryFire(): void {
     this.kz.v += 0.3;
     this.hammerPulse = 0.05;
@@ -232,8 +256,7 @@ export class ViewModel {
   }
 
   update(dt: number, f: ViewFrame): void {
-    this.root.visible = f.visible;
-    if (!f.visible || dt <= 0) return;
+    if (!this.visibleFlag || dt <= 0) return;
     this.time += dt;
     const lowerS = WEAPON_HANDLING.switchLowerS;
     const raiseS = WEAPON_HANDLING.switchRaiseS;
@@ -487,6 +510,7 @@ export class ViewModel {
   dispose(): void {
     this.flash.dispose();
     this.casings.dispose();
+    this.look.dispose();
     this.flashLight.removeFromParent();
     for (const l of this.extraLights) l.removeFromParent();
     this.root.removeFromParent();

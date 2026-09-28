@@ -1,16 +1,18 @@
 import * as THREE from 'three';
 import { CONTAMINATION, PLAYER, RENDER } from '../config';
-import type { QualityLevel } from '../config';
+import type { QualityLevel, QualityPreset } from '../config';
 import type { EngineApi, EngineStats } from '../core/context';
 import type { EventBus } from '../core/events';
 import type { RunState } from '../core/state';
 import { createAdaptiveScale } from './adaptive';
+import { probeRenderCaps } from './caps';
 import { createFx } from './fx';
 import { installFogPatch } from './glsl';
 import { createLightRig, createViewLights } from './lighting';
 import { createMaterials } from './materials';
 import { getNoiseLayers } from './noise';
 import { PostStack } from './post';
+import { clampToDevice, resolvePreset } from './preset';
 import { createScreenFxState } from './screenFx';
 import type { ScreenFxState } from './screenFx';
 import { createSky } from './sky';
@@ -37,6 +39,12 @@ export interface EngineExtras {
   readonly postCalls: number;
   /** Dirección unitaria hacia la luna. */
   readonly moonDir: THREE.Vector3;
+  /** Preset efectivo (tras perfil móvil y capacidades del dispositivo). */
+  readonly preset: QualityPreset;
+  /** El contexto WebGL está perdido (no se dibuja hasta que se restaure). */
+  readonly contextLost: boolean;
+  /** Capacidades detectadas: HDR half-float, MSAA sobre HDR. */
+  readonly caps: { hdr: boolean; msaaHdr: boolean; touch: boolean };
 }
 
 export type Engine = EngineApi & EngineExtras;
@@ -47,9 +55,15 @@ export type Engine = EngineApi & EngineExtras;
  */
 export function createEngine(opts: EngineOptions): Engine {
   const { canvas, bus, state } = opts;
+  const touch = opts.touch ?? false;
   installFogPatch();
   const renderer = new THREE.WebGLRenderer({
-    canvas, antialias: true, powerPreference: 'high-performance', stencil: false, preserveDrawingBuffer: opts.qa,
+    canvas,
+    // En móviles el MSAA del framebuffer por defecto es caro: el AA lo decide el preset (target HDR).
+    antialias: !touch,
+    powerPreference: touch ? 'default' : 'high-performance',
+    stencil: false,
+    preserveDrawingBuffer: opts.qa,
   });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -59,9 +73,8 @@ export function createEngine(opts: EngineOptions): Engine {
   renderer.setClearColor(RENDER.sky.fog);
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
-  const ext = renderer.extensions;
-  const hdr = ext.has('EXT_color_buffer_float') || ext.has('EXT_color_buffer_half_float');
-  const msaaOk = ext.has('EXT_color_buffer_float') || !hdr;
+  // Sondeo real de HDR/MSAA (sin depender sólo de las extensiones): degrada a render directo.
+  const caps = probeRenderCaps(renderer.getContext() as WebGL2RenderingContext);
 
   const layers = getNoiseLayers();
   const scene = new THREE.Scene();
@@ -84,11 +97,13 @@ export function createEngine(opts: EngineOptions): Engine {
 
   const materials = createMaterials();
   const fx = createFx({ scene, camera, bus, state });
-  const post = new PostStack(renderer, hdr);
+  const post = new PostStack(renderer, caps.hdr);
   const screenFx = createScreenFxState();
-  const adaptive = createAdaptiveScale({ ...RENDER.adaptive, enabled: RENDER.adaptive.enabled && !opts.qa });
+  const adaptiveCfg = touch ? RENDER.mobile.adaptive : RENDER.adaptive;
+  const adaptive = createAdaptiveScale({ ...adaptiveCfg, enabled: adaptiveCfg.enabled && !opts.qa });
 
   let quality: QualityLevel = opts.quality ?? RENDER.defaultQuality;
+  let preset = clampToDevice(resolvePreset(quality, touch), caps);
   const stats: EngineStats = { fps: 60, frameMs: 16.7, drawCalls: 0, triangles: 0, pixelRatio: 1, quality };
   let envRT: THREE.WebGLRenderTarget | null = null;
   let logicalW = canvas.clientWidth || 960;
@@ -97,6 +112,8 @@ export function createEngine(opts: EngineOptions): Engine {
   let lastNow = 0;
   let accT = 0;
   let accFrames = 0;
+  let contextLost = false;
+  let disposed = false;
 
   const off = [
     bus.on('player:damaged', (e) => screenFx.onDamaged(e.hpDamage, e.armorDamage, e.source === 'contamination')),
@@ -107,7 +124,6 @@ export function createEngine(opts: EngineOptions): Engine {
   ];
 
   const applySize = (): void => {
-    const preset = RENDER.presets[quality];
     const pr = Math.min(window.devicePixelRatio || 1, preset.pixelRatioMax) * adaptive.scale;
     stats.pixelRatio = pr;
     renderer.setPixelRatio(pr);
@@ -122,33 +138,123 @@ export function createEngine(opts: EngineOptions): Engine {
   };
 
   const applyQuality = (): void => {
-    const p = RENDER.presets[quality];
+    const p = preset;
     stats.quality = quality;
     camera.far = p.viewDistance;
     camera.updateProjectionMatrix();
     // La niebla debe cubrir casi por completo la distancia de dibujo (evita ver el recorte).
     fog.density = Math.max(RENDER.fogDensity, Math.sqrt(3) / p.viewDistance);
     sky.dome.scale.setScalar(Math.min(80, p.viewDistance * 0.4));
-    const wantEnv = p.envMap;
-    if (wantEnv && !envRT) envRT = sky.bakeEnvironment(renderer);
-    scene.environment = wantEnv && envRT ? envRT.texture : null;
+    if (p.envMap && !envRT) envRT = sky.bakeEnvironment(renderer);
+    scene.environment = p.envMap && envRT ? envRT.texture : null;
     viewScene.environment = scene.environment;
     viewScene.environmentIntensity = 1;
     rig.applyQuality(p, scene.environment !== null);
-    post.configure({ mode: p.msaa === 0 && !p.bloom ? 'direct' : 'hdr', msaa: msaaOk ? p.msaa : 0, bloom: p.bloom });
+    // Sin HDR renderizable o sin necesidad de post: render directo (tone mapping por material).
+    const useHdr = caps.hdr && (p.msaa > 0 || p.bloom);
+    post.configure({
+      mode: useHdr ? 'hdr' : 'direct',
+      msaa: p.msaa,
+      bloom: p.bloom && caps.hdr,
+      bloomLevels: touch ? RENDER.mobile.bloomLevels : 5,
+      lite: touch,
+    });
     materials.configure({
       lowTextures: p.lowTextures,
       anisotropy: Math.min(p.anisotropy, renderer.capabilities.getMaxAnisotropy()),
-      alphaToCoverage: p.msaa > 0 && msaaOk,
+      alphaToCoverage: p.msaa > 0 && useHdr,
     });
     fx.setQuality(p);
     adaptive.reset();
     applySize();
   };
 
+  // ── Robustez: pérdida de contexto, tamaño, DPR y visibilidad ────────────────
+  const onContextLost = (e: Event): void => {
+    e.preventDefault();
+    contextLost = true;
+  };
+  const onContextRestored = (): void => {
+    // three reinicializa sus recursos de GPU (texturas y buffers se vuelven a subir solos);
+    // los render targets y el entorno PMREM (contenido horneado) hay que reconstruirlos.
+    envRT?.dispose();
+    envRT = null;
+    post.invalidate();
+    lastNow = 0;
+    contextLost = false;
+    applyQuality();
+  };
+  canvas.addEventListener('webglcontextlost', onContextLost);
+  canvas.addEventListener('webglcontextrestored', onContextRestored);
+
+  /** Tamaño lógico real: el del canvas si lo escala el CSS; si no, el de la ventana. */
+  const measure = (): [number, number] => {
+    const cw = canvas.clientWidth;
+    const ch = canvas.clientHeight;
+    const cssScaled = cw !== canvas.width || ch !== canvas.height;
+    if (cw > 0 && ch > 0 && cssScaled) return [cw, ch];
+    return [window.innerWidth, window.innerHeight];
+  };
+  let resizeRaf = 0;
+  let lastDpr = window.devicePixelRatio || 1;
+  const scheduleResize = (): void => {
+    if (resizeRaf !== 0 || disposed) return;
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = 0;
+      const [w, h] = measure();
+      const dpr = window.devicePixelRatio || 1;
+      if (w <= 0 || h <= 0 || (w === logicalW && h === logicalH && dpr === lastDpr)) return;
+      logicalW = w;
+      logicalH = h;
+      lastDpr = dpr;
+      applySize();
+    });
+  };
+  const cleanups: Array<() => void> = [];
+  const listen = (target: EventTarget | null | undefined, type: string): void => {
+    if (!target) return;
+    target.addEventListener(type, scheduleResize);
+    cleanups.push(() => target.removeEventListener(type, scheduleResize));
+  };
+  listen(window, 'resize');
+  listen(window, 'orientationchange');
+  listen(window.visualViewport, 'resize');
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(scheduleResize);
+    ro.observe(canvas);
+    cleanups.push(() => ro.disconnect());
+  }
+  // El DPR cambia con el zoom del navegador o al mover la ventana entre pantallas.
+  const watchDpr = (): void => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+    const handler = (): void => {
+      scheduleResize();
+      watchDpr();
+    };
+    mq.addEventListener('change', handler, { once: true });
+    cleanups.push(() => mq.removeEventListener('change', handler));
+  };
+  watchDpr();
+  const onVisibility = (): void => {
+    // Al volver de segundo plano el primer dt sería enorme: se reinicia la medición.
+    lastNow = 0;
+    accT = 0;
+    accFrames = 0;
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+  cleanups.push(() => document.removeEventListener('visibilitychange', onVisibility));
+
   const engine: Engine = {
     renderer, scene, camera, viewScene, viewCamera, materials, fx, stats, screenFx,
     moonDir: sky.moonDir,
+    caps: { hdr: caps.hdr, msaaHdr: caps.msaaHdr, touch },
+    get preset() {
+      return preset;
+    },
+    get contextLost() {
+      return contextLost;
+    },
     get resolutionScale() {
       return adaptive.scale;
     },
@@ -166,9 +272,15 @@ export function createEngine(opts: EngineOptions): Engine {
       if (w <= 0 || h <= 0) return;
       logicalW = w;
       logicalH = h;
+      lastDpr = window.devicePixelRatio || 1;
       applySize();
     },
     render() {
+      // Sin contexto o con la pestaña oculta no se dibuja (evita errores y gasto de batería).
+      if (contextLost || document.hidden) {
+        lastNow = 0;
+        return;
+      }
       const now = performance.now() / 1000;
       const dt = lastNow > 0 ? now - lastNow : 0;
       lastNow = now;
@@ -191,6 +303,7 @@ export function createEngine(opts: EngineOptions): Engine {
     setQuality(level) {
       if (level === quality) return;
       quality = level;
+      preset = clampToDevice(resolvePreset(quality, touch), caps);
       applyQuality();
     },
     update(dt) {
@@ -209,6 +322,11 @@ export function createEngine(opts: EngineOptions): Engine {
       });
     },
     dispose() {
+      disposed = true;
+      cancelAnimationFrame(resizeRaf);
+      for (const c of cleanups) c();
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      canvas.removeEventListener('webglcontextrestored', onContextRestored);
       for (const o of off) o();
       fx.dispose();
       materials.dispose();

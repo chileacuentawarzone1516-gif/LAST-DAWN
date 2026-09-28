@@ -59,7 +59,8 @@ declare global {
     __audioQa?: {
       ids(): string[];
       render(id: string): Promise<RenderResult>;
-      info(): { ready: boolean; errors: number; lastError: string; voices: number; stats: unknown; contexts: number };
+      info(): { ready: boolean; errors: number; lastError: string; voices: number; stats: unknown; contexts: number; state: string; lite: boolean; touch: boolean };
+      visibility(hidden: boolean): void;
       emit(n: number): void;
       unlock(): void;
       peak(): number;
@@ -73,8 +74,12 @@ window.__audioQa = {
   render: renderSound,
   info: () => ({
     ready: audio.ready, errors: audio.engine.errorCount, lastError: audio.engine.lastError, voices: audio.engine.voiceCount,
-    stats: audio.engine.stats, contexts: window.__audioContexts ?? 0,
+    stats: audio.engine.stats, contexts: window.__audioContexts ?? 0, state: audio.engine.state, lite: audio.engine.lite, touch: ctx.input.touch,
   }),
+  visibility: (hidden) => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+    document.dispatchEvent(new Event('visibilitychange'));
+  },
   emit: (n) => {
     // ráfaga de estrés repartida en el tiempo: n disparos + impactos alrededor del oyente cada ~8 ms
     let i = 0;
@@ -192,6 +197,32 @@ if (!qa) {
   btn('paso corriendo', () => bus.emit('player:footstep', { surface: 'concrete', speed: 7, crouched: false, sprinting: true, pos: { x: 0, y: 0, z: 0 } }));
   btn('salto', () => bus.emit('player:jumped', {}));
   btn('aterrizaje', () => bus.emit('player:landed', { impact: 9 }));
+
+  h3('VOZ DEL JUGADOR (género)');
+  const asGender = (g: 'male' | 'female', fn: () => void): void => {
+    const prev = ctx.state.profile.gender;
+    ctx.state.profile.gender = g;
+    try {
+      fn();
+    } finally {
+      ctx.state.profile.gender = prev;
+    }
+  };
+  const dmgFrom = (source: 'melee' | 'slam' | 'fall', armor = 0): void =>
+    bus.emit('player:damaged', { amount: 25, hpDamage: 25 - armor, armorDamage: armor, source, from: posAround(), hp: 60, armor: 0 });
+  for (const [g, tag] of [['male', '♂'], ['female', '♀']] as const) {
+    btn(`${tag} daño`, () => asGender(g, () => dmgFrom('melee')));
+    btn(`${tag} armadura`, () => asGender(g, () => dmgFrom('melee', 15)));
+    btn(`${tag} golpe fuerte`, () => asGender(g, () => dmgFrom('slam')));
+    btn(`${tag} caída`, () => asGender(g, () => dmgFrom('fall')));
+    btn(`${tag} muerte`, () => asGender(g, () => bus.emit('player:died', { source: 'melee' })));
+    btn(`${tag} salto`, () => asGender(g, () => bus.emit('player:jumped', {})));
+    btn(`${tag} aterrizaje`, () => asGender(g, () => bus.emit('player:landed', { impact: 10 })));
+    btn(`${tag} placa`, () => asGender(g, () => bus.emit('player:plateStarted', { durationS: 1.4 })));
+    btn(`${tag} granada`, () => asGender(g, () => bus.emit('player:grenadeThrown', { origin: { x: 0, y: 1.5, z: 0 }, velocity: { x: 0, y: 3, z: -15 } })));
+    panel.appendChild(document.createElement('br'));
+  }
+  toggle('perfil en femenino (afecta a todos los botones)', (v) => { ctx.state.profile.gender = v ? 'female' : 'male'; });
 
   h3('JUGADOR');
   const dmg = (source: 'melee' | 'spit' | 'slam' | 'explosion' | 'contamination' | 'fall', armor = 0): void =>

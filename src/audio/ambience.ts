@@ -42,7 +42,7 @@ export class Ambience {
   /** Nivel global 0..1 (flujo). */
   level = 0;
 
-  constructor(private readonly engine: AudioEngine, private readonly rng: Rng) {}
+  constructor(private readonly engine: AudioEngine, private readonly rng: Rng, private readonly lite = false) {}
 
   private build(): void {
     const eng = this.engine;
@@ -63,10 +63,12 @@ export class Ambience {
     link(track(src(ac, 'brown', 0.2)), this.windLowLp, this.windLow, out);
     this.windHi = gainNode(ac, 0.04);
     link(track(src(ac, 'pink', 1.1)), biquad(ac, 'bandpass', 1400, 0.5), this.windHi, out);
-    // silbido a través de vallas
-    this.whistleBp = biquad(ac, 'bandpass', 700, 14);
-    this.whistle = gainNode(ac, 0.02);
-    link(track(src(ac, 'pink', 0.6)), this.whistleBp, this.whistle, out);
+    // silbido a través de vallas (se omite en modo ligero)
+    if (!this.lite) {
+      this.whistleBp = biquad(ac, 'bandpass', 700, 14);
+      this.whistle = gainNode(ac, 0.02);
+      link(track(src(ac, 'pink', 0.6)), this.whistleBp, this.whistle, out);
+    }
     // zumbido industrial 50 Hz
     this.humGain = gainNode(ac, 0.05);
     for (const [f, g] of [[50, 1], [100.4, 0.5], [150.2, 0.25]] as const) {
@@ -77,7 +79,7 @@ export class Ambience {
       link(o, gg, this.humGain);
     }
     this.humGain.connect(out);
-    link(track(src(ac, 'brown', 1.7)), biquad(ac, 'lowpass', 160, 0.7), gainNode(ac, 0.5), this.humGain);
+    if (!this.lite) link(track(src(ac, 'brown', 1.7)), biquad(ac, 'lowpass', 160, 0.7), gainNode(ac, 0.5), this.humGain);
     // retumbar de contaminación
     this.rumbleLp = biquad(ac, 'lowpass', 180, 0.7);
     this.rumbleGain = gainNode(ac, 0);
@@ -86,8 +88,10 @@ export class Ambience {
     sub.frequency.value = 34;
     sub.start();
     link(sub, gainNode(ac, 0.6), this.rumbleGain);
-    this.crackle = gainNode(ac, 0);
-    link(track(src(ac, 'white', 0.4)), biquad(ac, 'highpass', 4500, 0.7), this.crackle, out);
+    if (!this.lite) {
+      this.crackle = gainNode(ac, 0);
+      link(track(src(ac, 'white', 0.4)), biquad(ac, 'highpass', 4500, 0.7), this.crackle, out);
+    }
   }
 
   update(dt: number, s: RunState, flowGain: number): void {
@@ -136,7 +140,7 @@ export class Ambience {
     // sonidos sueltos
     this.oneT -= dt;
     if (this.oneT <= 0 && this.enabled.oneshots && this.level > 0.3) {
-      this.oneT = between(this.rng, 7, 17) / (0.7 + 0.15 * threat);
+      this.oneT = (between(this.rng, 7, 17) / (0.7 + 0.15 * threat)) * (this.lite ? 1.8 : 1);
       const az = between(this.rng, 0, Math.PI * 2);
       const cam = eng.listenerPos;
       const pos = (d: number) => ({ x: cam.x + Math.sin(az) * d, y: 2, z: cam.z - Math.cos(az) * d });

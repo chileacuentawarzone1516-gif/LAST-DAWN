@@ -1,5 +1,6 @@
 /** Tipos compartidos del módulo de audio (sin dependencias de WebAudio en runtime). */
 import type { Rng } from '../core/util';
+import type { PlayerVoice } from './pure';
 
 export type BusName = 'sfx' | 'music' | 'ambience' | 'ui';
 
@@ -18,6 +19,8 @@ export interface RecipeParams {
   distance: number;
   /** Valor 0..1 genérico (progreso, altura tonal…). */
   level: number;
+  /** Timbre de la voz del jugador (género); neutro = masculino base. */
+  voice: PlayerVoice;
 }
 
 /**

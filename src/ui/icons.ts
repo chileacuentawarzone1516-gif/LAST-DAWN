@@ -8,7 +8,7 @@ import { svgEl } from './dom';
 export type IconName =
   | 'health' | 'shield' | 'plate' | 'grenade' | 'bullet' | 'money' | 'skull' | 'relay' | 'heli' | 'crate' | 'cage'
   | 'gate' | 'radio' | 'lz' | 'check' | 'lock' | 'target' | 'clock' | 'speaker' | 'mute' | 'warning' | 'toxic'
-  | 'headshot' | 'chart' | 'contract' | 'cross';
+  | 'headshot' | 'chart' | 'contract' | 'cross' | 'shuffle' | 'reset' | 'user' | 'back' | 'touch';
 
 interface IconDef {
   /** Trazos (stroke). */
@@ -67,6 +67,11 @@ const ICONS: Record<IconName, IconDef> = {
   chart: { s: 'M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6' },
   contract: { s: 'M6 3h9l4 4v14H6zM14.5 3v4.5H19M9 12h7M9 15.5h7M9 8.5h3' },
   cross: { s: 'M6 6l12 12M18 6 6 18' },
+  shuffle: { s: 'M3 7h4l10 10h4M3 17h4l3-3.2M13.5 10.2 17 7h4M18 4l3 3-3 3M18 14l3 3-3 3' },
+  reset: { s: 'M4 12a8 8 0 1 0 2.6-5.9M4 4v5h5' },
+  user: { s: 'M12 11.5a4.3 4.3 0 1 0 0-8.6 4.3 4.3 0 0 0 0 8.6zM4 21c0-4.3 3.6-6.8 8-6.8s8 2.5 8 6.8' },
+  back: { s: 'M14 5l-7 7 7 7M7 12h13' },
+  touch: { s: 'M9 11V5.5a1.6 1.6 0 0 1 3.2 0V11m0-1.6a1.6 1.6 0 0 1 3.2 0V11m0-.6a1.6 1.6 0 0 1 3.2 0V16a5 5 0 0 1-5 5h-1.4a5 5 0 0 1-4-2L4.6 15a1.6 1.6 0 0 1 2.5-2L9 15' },
 };
 
 /** Icono SVG inline (hereda `currentColor`); decorativo: aria-hidden. */

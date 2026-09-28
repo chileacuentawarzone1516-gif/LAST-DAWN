@@ -35,7 +35,7 @@ export class Music {
   private smoothed = 0;
   private layers = { pad: 0, tension: 0, pulse: 0, combat: 0 };
 
-  constructor(private readonly engine: AudioEngine, private readonly rng: Rng) {}
+  constructor(private readonly engine: AudioEngine, private readonly rng: Rng, private readonly lite = false) {}
 
   private build(): void {
     const ac = this.engine.ac;
@@ -109,7 +109,7 @@ export class Music {
         if (s === 0 || s === 6 || s === 10) {
           tone(ac, out, t, { f0: 95, f1: 38, dur: 0.22, peak: 0.55 * g, attack: 0.003, sat: 0.2 });
         }
-        if (s % 2 === 1) noiseBurst(ac, out, t, { dur: 0.03, peak: 0.07 * g, attack: 0.001, type: 'highpass', f0: 6500, rng: this.rng });
+        if (!this.lite && s % 2 === 1) noiseBurst(ac, out, t, { dur: 0.03, peak: 0.07 * g, attack: 0.001, type: 'highpass', f0: 6500, rng: this.rng });
         if (s === 8) noiseBurst(ac, out, t, { dur: 0.35, peak: 0.16 * g, attack: 0.002, type: 'bandpass', f0: 2200, f1: 900, q: 3, rng: this.rng });
       }
       if (this.layers.combat > 0.03 && s % 2 === 0) {

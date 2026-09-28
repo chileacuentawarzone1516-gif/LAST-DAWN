@@ -88,6 +88,7 @@ export class WeaponSystem {
       ctx.bus.emit('player:hitConfirm', c);
     });
     this.scope.on('loadout:changed', () => this.syncLoadout(false));
+    this.scope.on('profile:changed', () => this.viewmodel.applyProfile(ctx.state.profile));
     this.syncLoadout(true);
   }
 
@@ -215,6 +216,26 @@ export class WeaponSystem {
     this.ctx.bus.emit('player:grenadeThrown', { origin: o, velocity: v });
   }
 
+  /** Muestra/oculta el viewmodel según el flujo (oculto en el título, donde se ve el maniquí). */
+  refreshVisibility(): void {
+    this.viewmodel.setVisible(this.ctx.state.flow !== 'title');
+  }
+
+  /**
+   * Se llama ANTES de mover al jugador: decide con la entrada de ESTE frame qué bloquea correr.
+   * Así, si se dispara (o se apunta/recarga…) corriendo, el sprint termina en el mismo frame y el
+   * disparo sale con la dispersión de andar, sin esperar a que el estado llegue del frame anterior.
+   */
+  beginFrame(): void {
+    const { ctx, ctl } = this;
+    const input = ctx.input;
+    const slot = this.slot();
+    const active = ctl.alive && ctl.controlEnabled && ctx.state.flow === 'playing' && ctx.state.ui.modal === null;
+    const fireIntent = active && (input.isDown('fire') || input.wasPressed('fire') || this.fireBuffer > 0) && !!slot && slot.mag > 0;
+    const pending = active && (input.wasPressed('reload') || input.wasPressed('grenade') || input.wasPressed('plate'));
+    this.sprintBlocked = (active && input.isDown('aim')) || this.reloading || this.action !== 0 || fireIntent || pending;
+  }
+
   update(dt: number): void {
     const { ctx, ctl } = this;
     const st = this.st;
@@ -299,11 +320,18 @@ export class WeaponSystem {
     // Disparo
     let dryClick = false;
     if (active && !shopOpen && def && slot) {
-      if (input.wasPressed('fire')) this.fireBuffer = H.fireBufferS;
-      else this.fireBuffer = Math.max(0, this.fireBuffer - dt);
+      // Un clic más corto que un frame (pulsar y soltar) deja flanco pero no 'isDown': se usa el flanco.
+      const fireEdge = input.wasPressed('fire');
+      const fireDown = input.isDown('fire') || fireEdge;
+      if (fireEdge) {
+        this.fireBuffer = H.fireBufferS;
+        // Microimpulso instantáneo al apretar el gatillo (se nota aunque el disparo espere al enfriamiento).
+        this.viewmodel.onTrigger();
+        ctl.punch(H.triggerPunchDeg);
+      } else this.fireBuffer = Math.max(0, this.fireBuffer - dt);
       const auto = isAutomatic(def);
-      const want = auto ? input.isDown('fire') : this.fireBuffer > 0;
-      if (!input.isDown('fire')) this.dryLatched = false;
+      const want = auto ? fireDown || this.fireBuffer > 0 : this.fireBuffer > 0;
+      if (!fireDown) this.dryLatched = false;
       const shellInterrupt = this.reloading && this.plan?.kind === 'shells' && slot.mag > 0;
       const canFire = ready && (!this.reloading || shellInterrupt);
       if (want && canFire) {
@@ -360,7 +388,7 @@ export class WeaponSystem {
     st.usingPlate = this.action === 1;
 
     // Salidas hacia el controlador
-    const fireHeld = active && input.isDown('fire') && !!slot && slot.mag > 0 && !shopOpen;
+    const fireHeld = active && (input.isDown('fire') || this.fireBuffer > 0) && !!slot && slot.mag > 0 && !shopOpen;
     this.sprintBlocked = this.aimHeld || this.reloading || this.action !== 0 || fireHeld;
     let sm = def ? def.moveSpeedMult : 1;
     if (canAim) sm *= PLAYER.aimSpeedMult;
@@ -393,7 +421,6 @@ export class WeaponSystem {
     f.actionT = this.actionT;
     f.actionDur = this.actionDur || 1;
     f.actionWindup = GRENADE.throwWindupS;
-    f.visible = ctx.state.flow !== 'title';
     f.dead = !ctl.alive;
     this.viewmodel.update(dt, f);
     this.grenades.update(dt);
@@ -478,6 +505,7 @@ export class WeaponSystem {
     ctl.kick(def.recoilPitch * k, yawK, H.recoilMaxPitch, H.recoilMaxYaw);
     this.shotSpread = spreadAfterShot(this.shotSpread, def, this.adsT);
     this.viewmodel.onShot(def, def.recoilPitch, this.adsT);
+    ctl.punch(0.05 + def.recoilPitch * 0.03);
   }
 
   /** Traza un perdigón (this.dir desde this.origin). Devuelve 0 nada, 1 mundo, 2 enemigo. */

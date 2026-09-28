@@ -4,8 +4,8 @@
  * generación de ruido/IR/curvas) vive en `pure.ts`.
  */
 import type { Rng } from '../core/util';
-import { fillNoise, generateIr, saturationCurve, softClipCurve } from './pure';
-import type { NoiseKind } from './pure';
+import { NEUTRAL_VOICE, fillNoise, generateIr, saturationCurve, softClipCurve } from './pure';
+import type { IrSpec, NoiseKind } from './pure';
 import type { RecipeParams } from './types';
 
 /** Suelo de las rampas exponenciales (−80 dB). */
@@ -35,6 +35,12 @@ export function noiseBuffer(ac: BaseAudioContext, kind: NoiseKind): AudioBuffer 
   return buf;
 }
 
+/** Modo ligero (móvil): sin sobremuestreo en los WaveShaper. */
+let liteMode = false;
+export function setLiteMode(v: boolean): void {
+  liteMode = v;
+}
+
 const curveCache = new Map<string, Float32Array<ArrayBuffer>>();
 
 function cachedCurve(key: string, make: () => Float32Array): Float32Array<ArrayBuffer> {
@@ -53,7 +59,7 @@ export function saturator(ac: BaseAudioContext, amount: number): WaveShaperNode 
   const a = Math.round(Math.max(0.02, amount) * 20) / 20;
   const sh = ac.createWaveShaper();
   sh.curve = cachedCurve(`sat:${a}`, () => saturationCurve(1025, a));
-  sh.oversample = '2x';
+  sh.oversample = liteMode ? 'none' : '2x';
   return sh;
 }
 
@@ -61,13 +67,13 @@ export function saturator(ac: BaseAudioContext, amount: number): WaveShaperNode 
 export function safetyClipper(ac: BaseAudioContext): WaveShaperNode {
   const sh = ac.createWaveShaper();
   sh.curve = cachedCurve('clip', () => softClipCurve(2049));
-  sh.oversample = '2x';
+  sh.oversample = liteMode ? 'none' : '2x';
   return sh;
 }
 
 /** Reverb por convolución con IR generada por código (estéreo, cola de ~2 s). */
-export function createReverb(ac: BaseAudioContext): ConvolverNode {
-  const ir = generateIr(ac.sampleRate);
+export function createReverb(ac: BaseAudioContext, spec?: IrSpec): ConvolverNode {
+  const ir = generateIr(ac.sampleRate, spec);
   const buf = ac.createBuffer(2, ir.left.length, ac.sampleRate);
   buf.getChannelData(0).set(ir.left);
   buf.getChannelData(1).set(ir.right);
@@ -501,5 +507,6 @@ export function makeParams(rng: Rng, partial: Partial<Omit<RecipeParams, 'rng'>>
     alt: partial.alt ?? false,
     distance: partial.distance ?? 0,
     level: partial.level ?? 0,
+    voice: partial.voice ?? NEUTRAL_VOICE,
   };
 }

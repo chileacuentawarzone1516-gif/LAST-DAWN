@@ -9,9 +9,10 @@ import { AUDIO } from '../config';
 import type { Vec3 } from '../core/types';
 import { clamp, clamp01, createRng } from '../core/util';
 import type { Rng } from '../core/util';
-import { DEFAULT_LIMITER, VoiceLimiter, airCutoff, rangeFade, reverbSendFor, soundDelay } from './pure';
+import { DEFAULT_LIMITER, LITE_IR, LITE_LIMITER, VoiceLimiter, airCutoff, rangeFade, reverbSendFor, soundDelay } from './pure';
+import type { PlayerVoice } from './pure';
 import { RECIPES } from './sfx';
-import { biquad, createReverb, gainNode, makeParams, safetyClipper } from './synth';
+import { biquad, createReverb, gainNode, makeParams, safetyClipper, setLiteMode } from './synth';
 import type { BusName, RecipeDef, RecipeParams, VoiceHandle } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ const BUS_SEND: Record<BusName, number> = { sfx: 0, ui: 0, music: 0.32, ambience
  * bus.input → bus.level → master → muffle → compresor → recortador → destino.
  * La reverb (convolver con IR generada) recibe los envíos y vuelve a `master`.
  */
-export function buildChain(ac: BaseAudioContext, dest: AudioNode, levels: Levels = DEFAULT_LEVELS): Chain {
+export function buildChain(ac: BaseAudioContext, dest: AudioNode, levels: Levels = DEFAULT_LEVELS, lite = false): Chain {
   const master = gainNode(ac, levels.master);
   const muffle = biquad(ac, 'lowpass', 20000, 0.55);
   const comp = ac.createDynamicsCompressor();
@@ -79,7 +80,7 @@ export function buildChain(ac: BaseAudioContext, dest: AudioNode, levels: Levels
 
   const reverbIn = gainNode(ac, 1);
   const rhp = biquad(ac, 'highpass', 170, 0.6);
-  const conv = createReverb(ac);
+  const conv = createReverb(ac, lite ? LITE_IR : undefined);
   const reverbOut = gainNode(ac, 0.6);
   reverbIn.connect(rhp);
   rhp.connect(conv);
@@ -173,18 +174,23 @@ export interface PlayOptions {
   soundDelay?: boolean;
   /** Ignora gap/ráfaga del limitador (eventos críticos). */
   force?: boolean;
+  /** Timbre de la voz del jugador (género); por defecto neutro. */
+  voice?: PlayerVoice;
 }
 
 interface AudioCtor {
   new (opts?: AudioContextOptions): AudioContext;
 }
 
+/** Voces con HRTF simultáneas (0 en móvil: panorámica equalpower, mucho más barata). */
 const MAX_HRTF = 8;
 
 export class AudioEngine {
   ac: AudioContext | null = null;
   chain: Chain | null = null;
-  readonly limiter = new VoiceLimiter(DEFAULT_LIMITER);
+  readonly limiter: VoiceLimiter;
+  /** Modo ligero (táctil): menos voces, reverb corta, sin HRTF ni sobremuestreo. */
+  readonly lite: boolean;
   readonly levels: Levels;
   /** Posición/orientación del oyente (actualizadas por update). */
   readonly listenerPos = new Vector3();
@@ -204,6 +210,7 @@ export class AudioEngine {
   private stunRelease = 2;
   private muffleApplied = -1;
   private resumeCooldown = 0;
+  private hiddenSuspend = false;
   private disposed = false;
   private gestureOff: Array<() => void> = [];
   private readonly rng: Rng = createRng((Date.now() ^ 0x9e3779b9) >>> 0);
@@ -213,7 +220,10 @@ export class AudioEngine {
   /** Contadores de diagnóstico. */
   stats = { played: 0, rejected: 0, stolen: 0, culled: 0 };
 
-  constructor(private readonly camera: Camera | null) {
+  constructor(private readonly camera: Camera | null, lite = false) {
+    this.lite = lite;
+    this.limiter = new VoiceLimiter(lite ? LITE_LIMITER : DEFAULT_LIMITER);
+    setLiteMode(lite);
     const s = loadStored();
     this.levels = {
       master: num(s.master, DEFAULT_LEVELS.master),
@@ -254,6 +264,11 @@ export class AudioEngine {
   }
 
   // ── Creación del contexto (dentro del gesto del usuario) ─────────────────
+  /**
+   * Crea/reanuda el AudioContext. Debe llamarse dentro de un gesto (iOS/Android/escritorio): crea el
+   * contexto, lo reanuda y reproduce un buffer silencioso (desbloqueo de iOS). Si sigue suspendido se
+   * reintenta en el siguiente gesto, al volver a ser visible la pestaña y tras interrupciones de Safari.
+   */
   unlock(): void {
     if (this.disposed) return;
     if (!this.ac) {
@@ -262,30 +277,91 @@ export class AudioEngine {
       if (!Ctor) return;
       try {
         this.ac = new Ctor({ latencyHint: 'interactive' });
-      } catch (e) {
-        this.reportError(e);
-        return;
+      } catch {
+        try {
+          this.ac = new Ctor();
+        } catch (e2) {
+          this.reportError(e2);
+          return;
+        }
       }
-      this.chain = buildChain(this.ac, this.ac.destination, this.levels);
+      this.chain = buildChain(this.ac, this.ac.destination, this.levels, this.lite);
       this.applyMaster();
-      // Si el navegador dejó el contexto suspendido (sin gesto válido), se reintenta en el siguiente gesto.
-      const retry = (): void => this.tryResume();
-      for (const type of ['pointerdown', 'keydown', 'touchend', 'click'] as const) {
-        window.addEventListener(type, retry, { capture: true });
-        this.gestureOff.push(() => window.removeEventListener(type, retry, { capture: true }));
-      }
+      this.installLifecycle(this.ac);
     }
     this.tryResume();
+    this.playSilent();
+  }
+
+  /** Buffer silencioso de 1 muestra: en iOS termina de desbloquear la salida de audio. */
+  private playSilent(): void {
+    const ac = this.ac;
+    if (!ac) return;
+    try {
+      const b = ac.createBuffer(1, 1, 22050);
+      const s = ac.createBufferSource();
+      s.buffer = b;
+      s.connect(ac.destination);
+      s.start(0);
+    } catch {
+      /* nada */
+    }
+  }
+
+  private installLifecycle(ac: AudioContext): void {
+    const retry = (): void => {
+      if (this.hiddenSuspend && document.hidden) return;
+      this.tryResume();
+    };
+    const listen = <T extends EventTarget>(target: T, type: string, fn: () => void, capture = false): void => {
+      target.addEventListener(type, fn, capture ? { capture: true } : undefined);
+      this.gestureOff.push(() => target.removeEventListener(type, fn, capture ? { capture: true } : undefined));
+    };
+    // primer gesto válido: touchend/pointerup/click (iOS no cuenta touchstart) y teclado
+    for (const type of ['touchend', 'pointerup', 'pointerdown', 'click', 'keydown'] as const) listen(window, type, retry, true);
+    // ocultar la pestaña: suspender (ahorra batería); volver: reanudar
+    const onVis = (): void => {
+      if (!this.ac || this.ac.state === 'closed') return;
+      if (document.hidden) {
+        this.hiddenSuspend = true;
+        try {
+          void this.ac.suspend().catch(() => undefined);
+        } catch {
+          /* nada */
+        }
+      } else {
+        this.hiddenSuspend = false;
+        this.tryResume();
+      }
+    };
+    listen(document, 'visibilitychange', onVis);
+    listen(window, 'pageshow', () => {
+      this.hiddenSuspend = false;
+      this.tryResume();
+    });
+    listen(window, 'focus', retry);
+    // Safari pasa a 'interrupted' (llamada, alarma, segundo plano): al volver a 'suspended'/'interrupted' se reintenta
+    const onState = (): void => {
+      if (!document.hidden && !this.hiddenSuspend) this.tryResume();
+    };
+    ac.addEventListener('statechange', onState);
+    this.gestureOff.push(() => ac.removeEventListener('statechange', onState));
   }
 
   private tryResume(): void {
     const ac = this.ac;
     if (!ac || ac.state === 'running' || ac.state === 'closed') return;
+    if (this.hiddenSuspend && document.hidden) return;
     try {
       void ac.resume().catch(() => undefined);
     } catch {
       /* Safari antiguo */
     }
+  }
+
+  /** Estado del contexto ('running' | 'suspended' | 'interrupted' | 'closed' | 'none'). */
+  get state(): string {
+    return this.ac ? (this.ac.state as string) : 'none';
   }
 
   // ── Volúmenes / mute ─────────────────────────────────────────────────────
@@ -439,7 +515,7 @@ export class AudioEngine {
       extra.push(s);
     }
     if (o.pos) {
-      hrtf = dist < 32 && this.countHrtf() < MAX_HRTF;
+      hrtf = !this.lite && dist < 32 && this.countHrtf() < MAX_HRTF;
       const air = biquad(ac, 'lowpass', airCutoff(dist), 0.5);
       const panner = this.createPanner(def.range ?? AUDIO.maxDistance, hrtf);
       if (panner) {
@@ -456,7 +532,7 @@ export class AudioEngine {
     }
 
     const params: RecipeParams = makeParams(o.rng ?? this.rng, {
-      intensity: o.intensity, pitch: o.pitch, duration: o.duration, alt: o.alt, level: o.level, distance: dist,
+      intensity: o.intensity, pitch: o.pitch, duration: o.duration, alt: o.alt, level: o.level, distance: dist, voice: o.voice,
     });
     const t0 = now + 0.008 + delay;
     try {

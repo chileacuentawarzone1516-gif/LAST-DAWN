@@ -46,11 +46,12 @@ export function baseSpreadDeg(def: Pick<WeaponDef, 'spreadHip' | 'spreadAds'>, a
   return lerp(def.spreadHip, def.spreadAds, t);
 }
 
-/** Multiplicador por postura/movimiento: agacharse y estar quieto reducen; correr y saltar aumentan. */
+/** Multiplicador por postura/movimiento: agacharse y estar quieto reducen; caminar apenas penaliza; correr y saltar penalizan más. */
 export function spreadMultiplier(ctx: Pick<SpreadContext, 'crouched' | 'speed01' | 'airborne' | 'sprinting'>): number {
   const H = WEAPON_HANDLING;
-  const speed = clamp01(ctx.speed01);
-  let m = speed < 0.05 ? H.spreadStillMult : 1 + H.spreadMoveMult * speed;
+  // Transición CONTINUA parado → caminando (sin saltos al empezar a moverse).
+  const t = clamp01(ctx.speed01 / H.spreadMoveRamp);
+  let m = lerp(H.spreadStillMult, 1 + H.spreadMoveMult, t);
   if (ctx.crouched) m *= H.spreadCrouchMult;
   if (ctx.sprinting) m *= H.spreadSprintMult;
   if (ctx.airborne) m *= H.spreadAirMult;

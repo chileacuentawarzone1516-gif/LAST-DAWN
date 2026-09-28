@@ -100,14 +100,26 @@ export function createLightRig(scene: THREE.Scene, renderer: THREE.WebGLRenderer
   };
 }
 
-/** Iluminación fija de la escena del viewmodel (arma en primera persona). */
+/**
+ * Iluminación FIJA de `ctx.viewScene` (arma en primera persona y maniquí del personaje). Son
+ * exactamente 3 luces (el número no cambia nunca: no recompila shaders) y el módulo `character`
+ * puede asumirlas al colocar el maniquí (viewCamera en el origen mirando -Z; el modelo está en -Z):
+ *
+ *  - Principal: direccional fría (0xdfe8ff, 2.6) desde delante-izquierda y arriba (-0.7, 0.9, 1.0).
+ *  - Relleno: hemisférica (cielo 0x9fb4d8 / suelo 0x2a3346, 1.9): levanta el lado en sombra.
+ *  - Contraluz suave: direccional azul (0x7da0ff, 1.5) desde detrás-derecha (0.9, 0.5, -0.8) que
+ *    separa la silueta del fondo del mundo.
+ *
+ * No hay niebla en viewScene, y el entorno PMREM del cielo (si el preset lo permite) da reflejos a
+ * los metales. Se dibuja tras el mundo con el depth limpio y ANTES del bloom, así que recibe el mismo
+ * tone mapping, bloom y viñeta que el mundo.
+ */
 export function createViewLights(viewScene: THREE.Scene): void {
-  viewScene.add(new THREE.HemisphereLight(0x9fb4d8, 0x1a2030, 1.5));
+  viewScene.add(new THREE.HemisphereLight(0x9fb4d8, 0x2a3346, 1.9));
   const key = new THREE.DirectionalLight(0xdfe8ff, 2.6);
-  key.position.set(0.5, 1, 0.6);
+  key.position.set(-0.7, 0.9, 1.0);
   viewScene.add(key);
-  // Contraluz frío: separa la silueta del arma del fondo.
-  const rim = new THREE.DirectionalLight(0x6f92ff, 1.3);
-  rim.position.set(-0.8, 0.3, -0.7);
+  const rim = new THREE.DirectionalLight(0x7da0ff, 1.5);
+  rim.position.set(0.9, 0.5, -0.8);
   viewScene.add(rim);
 }

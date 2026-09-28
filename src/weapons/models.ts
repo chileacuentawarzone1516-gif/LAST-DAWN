@@ -489,18 +489,22 @@ export interface ArmRig {
 export function createArm(materials: MaterialsApi, side: 1 | -1): ArmRig {
   const b = new PartBuilder();
   const s = side;
-  // Guante
+  // Guante sin yemas: el tono de piel asoma en las puntas de los dedos y en la muñeca.
   b.box('arm', 'clothDark', [0.07, 0.04, 0.085], [0, 0, 0.0]);
-  b.box('arm', 'clothDark', [0.068, 0.024, 0.05], [0, -0.024, -0.058], [-0.35, 0, 0]);
-  b.box('arm', 'clothDark', [0.022, 0.022, 0.056], [-0.04 * s, 0.006, -0.028], [0, 0.35 * s, 0]);
+  b.box('arm', 'clothDark', [0.068, 0.024, 0.034], [0, -0.024, -0.05], [-0.35, 0, 0]);
+  b.box('arm', 'skinPale', [0.066, 0.02, 0.014], [0, -0.04, -0.077], [-0.35, 0, 0]);
+  b.box('arm', 'clothDark', [0.022, 0.022, 0.04], [-0.04 * s, 0.006, -0.02], [0, 0.35 * s, 0]);
+  b.box('arm', 'skinPale', [0.02, 0.02, 0.012], [-0.05 * s, 0.006, -0.046], [0, 0.35 * s, 0]);
   b.box('arm', 'gunPolymer', [0.06, 0.009, 0.034], [0, 0.0245, -0.02]);
   b.box('arm', 'gunPolymer', [0.066, 0.05, 0.012], [0, 0, 0.05]);
+  b.box('arm', 'skinPale', [0.056, 0.042, 0.03], [0, 0, 0.073]);
   // Antebrazo (manga)
   const rot = new THREE.Euler(0.4, 0.28 * s, 0, 'YXZ');
   const dir = new THREE.Vector3(0, 0, 1).applyEuler(rot);
   const len = 0.46;
-  const c: V3 = [dir.x * (0.055 + len / 2), dir.y * (0.055 + len / 2) - 0.003, dir.z * (0.055 + len / 2)];
-  b.cylZ('arm', 'clothDark', 0.03, 0.042, len, c, 10, [rot.x, rot.y, rot.z]);
+  const start = 0.088;
+  const c: V3 = [dir.x * (start + len / 2), dir.y * (start + len / 2) - 0.003, dir.z * (start + len / 2)];
+  b.cylZ('arm', 'clothOlive', 0.03, 0.042, len, c, 10, [rot.x, rot.y, rot.z]);
   const geometries: THREE.BufferGeometry[] = [];
   const root = new THREE.Group();
   root.name = s > 0 ? 'armR' : 'armL';

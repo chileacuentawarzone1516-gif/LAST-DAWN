@@ -3,7 +3,7 @@
  * cámara, retroceso, sacudidas y cámara de muerte. Sin asignaciones en el bucle caliente.
  */
 import * as THREE from 'three';
-import { PLAYER } from '../config';
+import { PLAYER, TOUCH, WEAPON_HANDLING } from '../config';
 import type { GameContext, MoveResult } from '../core/context';
 import type { DamageSource } from '../core/types';
 import { clamp, damp, degToRad } from '../core/util';
@@ -43,6 +43,10 @@ export class PlayerController {
   private ry = 0;
   private rpT = 0;
   private ryT = 0;
+  /** Microimpulso visual (rad) que decae rápido; no altera la dirección de disparo. */
+  private punchP = 0;
+  private punchV = 0;
+  private autoSprint = false;
   private sinceKick = 9;
   private eyeH: number = PLAYER.eyeHeight;
   private stepOff = 0;
@@ -100,9 +104,20 @@ export class PlayerController {
 
   /** Patada de cámara (grados). */
   kick(pitchDeg: number, yawDeg: number, maxP: number, maxY: number): void {
+    const p0 = this.rpT;
+    const y0 = this.ryT;
     this.rpT = Math.min(degToRad(maxP), this.rpT + degToRad(pitchDeg));
     this.ryT = clamp(this.ryT + degToRad(yawDeg), -degToRad(maxY), degToRad(maxY));
+    // Parte de la patada se aplica AL INSTANTE (la cámara reacciona en el mismo frame del disparo).
+    const k = WEAPON_HANDLING.recoilInstantFrac;
+    this.rp += (this.rpT - p0) * k;
+    this.ry += (this.ryT - y0) * k;
     this.sinceKick = 0;
+  }
+
+  /** Microimpulso de cámara puramente visual (grados). */
+  punch(pitchDeg: number): void {
+    this.punchP = Math.min(degToRad(0.6), this.punchP + degToRad(pitchDeg));
   }
 
   shake(amount: number): void {
@@ -151,9 +166,14 @@ export class PlayerController {
       if (!this.crouched) this.crouched = true;
       else if (this.canStand()) this.crouched = false;
     }
-    const f = active ? (input.isDown('forward') ? 1 : 0) - (input.isDown('back') ? 1 : 0) : 0;
-    const s = active ? (input.isDown('right') ? 1 : 0) - (input.isDown('left') ? 1 : 0) : 0;
-    let sprint = active && input.isDown('sprint') && f > 0 && !m.sprintBlocked;
+    // Ejes analógicos (teclado + joystick): la velocidad escala con la magnitud (teclado = 1).
+    const f = active ? input.moveY : 0;
+    const s = active ? input.moveX : 0;
+    // Táctil: correr automático al empujar el joystick hacia delante (con histéresis); teclado: Shift.
+    if (input.touch && active) {
+      this.autoSprint = f >= (this.autoSprint ? TOUCH.autoSprintThreshold - 0.08 : TOUCH.autoSprintThreshold);
+    } else this.autoSprint = false;
+    let sprint = active && (input.isDown('sprint') || this.autoSprint) && f > 0.1 && !m.sprintBlocked;
     if (sprint && this.crouched) {
       if (this.canStand()) this.crouched = false;
       else sprint = false;
@@ -279,6 +299,8 @@ export class PlayerController {
     this.flinchRollV += (-120 * this.flinchRoll - 16 * this.flinchRollV) * dt;
     this.flinchRoll += this.flinchRollV * dt;
     this.flinchPitch = damp(this.flinchPitch, 0, 10, dt);
+    this.punchV += (-900 * this.punchP - 60 * this.punchV) * Math.min(dt, 0.033);
+    this.punchP += this.punchV * Math.min(dt, 0.033);
     this.trauma = Math.max(0, this.trauma - 1.5 * dt);
     if (this.deathT > 0) this.deathT = Math.min(1, this.deathT + dt / PLAYER.deathFallS);
     this.fovCur = m.fov;
@@ -315,7 +337,7 @@ export class PlayerController {
       dRoll = this.deathRoll * e;
       dPitch = -0.3 * e;
     }
-    const pitch = clamp(this.pitch + this.rp + this.flinchPitch + shP + dPitch, -1.55, 1.55);
+    const pitch = clamp(this.pitch + this.rp + this.flinchPitch + this.punchP + shP + dPitch, -1.55, 1.55);
     const yaw = this.yaw + this.ry + shY;
     const sinY = Math.sin(yaw);
     const cosY = Math.cos(yaw);

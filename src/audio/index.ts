@@ -16,8 +16,9 @@ import type { HeliLoop, RelayLoop } from './loops';
 import { Music } from './music';
 import {
   ALERT_WEIGHT, CombatMeter, STRIDE, StrideTracker, dopplerRatio, heartbeatParams, holdTickFreq, holdTickInterval,
-  musicIntensity, stepIntensity, tunnelAmount,
+  musicIntensity, playerVoice, stepIntensity, tunnelAmount,
 } from './pure';
+import type { PlayerVoice } from './pure';
 import { RECIPE_IDS } from './sfx';
 import { dryId, gunId, reloadId } from './recipes/weapons';
 import type { BusName } from './types';
@@ -38,10 +39,13 @@ const THREAT: Record<string, number> = { perimeter: 1, warehouses: 2, refinery: 
 const HEAVY: ReadonlySet<EnemyType> = new Set<EnemyType>(['brute', 'warden']);
 
 export function createAudio(ctx: GameContext): AudioDevApi {
-  const engine = new AudioEngine(ctx.camera);
+  const lite = ctx.input.touch === true;
+  const engine = new AudioEngine(ctx.camera, lite);
   const rng = createRng((Date.now() ^ 0x51ed) >>> 0);
-  const music = new Music(engine, rng);
-  const ambience = new Ambience(engine, rng);
+  const music = new Music(engine, rng, lite);
+  const ambience = new Ambience(engine, rng, lite);
+  /** Voz del jugador según el género del perfil en el momento de sonar (con variación aleatoria). */
+  const voice = (): PlayerVoice => playerVoice(ctx.state.profile.gender, rng);
   const combat = new CombatMeter();
   const strides = new StrideTracker();
   const scope = ctx.bus.scope();
@@ -126,24 +130,24 @@ export function createAudio(ctx: GameContext): AudioDevApi {
     else if (e.source === 'spit') id = 'hurt.spit';
     else if (e.source === 'slam' || e.source === 'explosion') id = 'hurt.heavy';
     else if (e.armorDamage > 0) id = 'hurt.armor';
-    play(id, { intensity: I, pos });
+    play(id, { intensity: I, pos, voice: voice() });
   });
   bind('player:healed', () => play('player.heal'));
-  bind('player:plateStarted', (e) => play('plate.apply', { duration: e.durationS, group: 'plate' }));
+  bind('player:plateStarted', (e) => play('plate.apply', { duration: e.durationS, group: 'plate', voice: voice() }));
   bind('player:plateUsed', () => play('plate.done'));
   bind('player:died', () => {
     engine.cancelGroup('plate');
     engine.cancelGroup('reload');
-    play('player.death', { force: true });
+    play('player.death', { force: true, voice: voice() });
     deathFade = 1;
     engine.setMuffle(0.8, 0.9);
   });
-  bind('player:jumped', () => play('player.jump'));
-  bind('player:landed', (e) => play('player.land', { intensity: Math.min(1, e.impact / 12) }));
+  bind('player:jumped', () => play('player.jump', { voice: voice() }));
+  bind('player:landed', (e) => play('player.land', { intensity: Math.min(1, e.impact / 12), voice: voice() }));
   bind('player:footstep', (e) => {
     play(`step.${e.surface}`, { intensity: stepIntensity(e.crouched, e.sprinting, e.speed), key: 'step.player' });
   });
-  bind('player:grenadeThrown', () => play('grenade.throw'));
+  bind('player:grenadeThrown', () => play('grenade.throw', { voice: voice() }));
   bind('player:hitConfirm', (e) => {
     if (e.helmet) play('hit.helmet');
     else if (e.zone === 'head') play('hit.head');
@@ -267,7 +271,7 @@ export function createAudio(ctx: GameContext): AudioDevApi {
       heliPanner = engine.createPanner(420, false, 0.75, 14);
       heliAir = ac.createBiquadFilter();
       heliAir.type = 'lowpass';
-      heli = createHeliLoop(ac, heliAir, ac.currentTime);
+      heli = createHeliLoop(ac, heliAir, ac.currentTime, lite);
       if (heliPanner) {
         heliAir.connect(heliPanner);
         heliPanner.connect(chain.buses.sfx.input);
@@ -330,7 +334,7 @@ export function createAudio(ctx: GameContext): AudioDevApi {
     for (const e of ctx.enemies.list) {
       if (!e.alive) continue;
       const d = Math.hypot(e.position.x - p.x, e.position.z - p.z);
-      if (d > (HEAVY.has(e.type) ? 55 : 28)) continue;
+      if (d > (HEAVY.has(e.type) ? 55 : 28) * (lite ? 0.6 : 1)) continue;
       if (strides.step(e.id, e.position.x, e.position.z, STRIDE[e.type] ?? 1.2)) {
         play(`step.enemy.${e.type}`, { pos: { x: e.position.x, y: 0.1, z: e.position.z } });
       }

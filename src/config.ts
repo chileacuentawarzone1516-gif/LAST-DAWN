@@ -266,8 +266,8 @@ export const WEAPON_HANDLING = {
   switchRaiseS: 0.26,
   /** Retardo (s) entre vaciar el cargador y empezar la recarga automática. */
   autoReloadDelayS: 0.22,
-  /** Un disparo semiautomático pulsado hasta este tiempo antes de poder disparar se encola (s). */
-  fireBufferS: 0.12,
+  /** Un clic pulsado hasta este tiempo antes de poder disparar se encola y sale en cuanto se puede (s). */
+  fireBufferS: 0.15,
   /** La dispersión por disparo no se recupera hasta pasado max(minDelay, fireInterval × mult). */
   spreadRecoveryDelayMult: 1.4,
   spreadRecoveryMinDelayS: 0.09,
@@ -275,11 +275,16 @@ export const WEAPON_HANDLING = {
   adsShotSpreadMult: 0.5,
   /** Multiplicadores de dispersión por postura. */
   spreadCrouchMult: 0.7,
-  spreadStillMult: 0.85,
-  /** Extra al moverse (1 + moveMult × velocidad normalizada). */
-  spreadMoveMult: 0.7,
+  spreadStillMult: 0.92,
+  /** Extra al caminar (1 + moveMult): moderado para poder disparar andando. Correr y saltar penalizan más. */
+  spreadMoveMult: 0.22,
+  /** Velocidad normalizada a partir de la cual la penalización de movimiento es completa (transición continua). */
+  spreadMoveRamp: 0.6,
   spreadSprintMult: 1.5,
   spreadAirMult: 2.0,
+  /** Microimpulso instantáneo al apretar el gatillo: cámara (grados, sólo visual) y fracción de la patada que se aplica al instante. */
+  triggerPunchDeg: 0.16,
+  recoilInstantFrac: 0.45,
   /** Retroceso de cámara: multiplicadores y recuperación. */
   recoilAdsMult: 0.72,
   recoilCrouchMult: 0.82,
@@ -717,6 +722,23 @@ export const RENDER = {
   bloom: { strength: 0.2, threshold: 1.05, knee: 0.5 },
   /** Post: viñeta base, grano y aberración cromática leve. */
   post: { vignette: 0.5, grain: 0.035, chroma: 0.006 },
+  /**
+   * Perfil móvil (dispositivos táctiles): sustituye campos de RENDER.presets[nivel], se limita
+   * `pixelRatioMax`/`anisotropy` y el escalado dinámico de resolución es más agresivo.
+   */
+  mobile: {
+    pixelRatioMax: 1.5,
+    anisotropyMax: 2,
+    /** Niveles de la cadena de bloom (desktop: 5). */
+    bloomLevels: 3,
+    presets: {
+      low: { viewDistance: 135, particles: 120, decals: 24 },
+      medium: { pixelRatioMax: 1.25, shadowMapSize: 1024, viewDistance: 175, particles: 250, decals: 40, msaa: 0, anisotropy: 2, envMap: false },
+      high: { pixelRatioMax: 1.5, shadowMapSize: 1536, viewDistance: 220, particles: 500, decals: 80, msaa: 2, anisotropy: 2 },
+    } as Record<QualityLevel, Partial<QualityPreset>>,
+    /** Escalado dinámico: arranca en `startScale`, ventana corta, sube si sobran FPS. */
+    adaptive: { enabled: true, lowFps: 50, highFps: 57, windowS: 1, minScale: 0.5, step: 0.1, startScale: 0.85, goodWindows: 2 },
+  },
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -760,6 +782,12 @@ export const HUD = {
   endGuardMs: 700,
   /** Espera (ms) tras «Continuar» antes de pedir «Haz clic para continuar». */
   resumeHintMs: 650,
+  /** Vista previa 3D del operativo: rad por px de arrastre, paso de teclado (rad), relación ancho/alto y relleno del área. */
+  preview: { rotatePerPx: 0.011, keyStepRad: 0.3, modelAspect: 0.5, fill: 0.92 },
+  /** Lado (px) del lienzo de los retratos 2D (se escala por CSS). */
+  portraitPx: 192,
+  /** Tamaño mínimo (px CSS) de los objetivos táctiles. */
+  touchTargetPx: 44,
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────

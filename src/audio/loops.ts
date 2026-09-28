@@ -27,7 +27,7 @@ export interface HeliLoop extends LoopHandle {
   set(rotor: number, doppler: number, wash: number, when: number): void;
 }
 
-export function createHeliLoop(ac: BaseAudioContext, dest: AudioNode, t0: number): HeliLoop {
+export function createHeliLoop(ac: BaseAudioContext, dest: AudioNode, t0: number, lite = false): HeliLoop {
   const out = gainNode(ac, 0);
   out.connect(dest);
   const srcs: AudioScheduledSourceNode[] = [];
@@ -65,12 +65,15 @@ export function createHeliLoop(ac: BaseAudioContext, dest: AudioNode, t0: number
   const turbGain = gainNode(ac, 0.05);
   link(turbine, tbp, turbGain, out);
 
-  const wash = loopNoise(ac, 'pink', t0, 0.9);
-  const washBp = biquad(ac, 'bandpass', 520, 0.6);
+  // viento del rotor (se omite en modo ligero)
   const washGain = gainNode(ac, 0);
-  link(wash, washBp, washGain, out);
+  if (!lite) {
+    const wash = loopNoise(ac, 'pink', t0, 0.9);
+    link(wash, biquad(ac, 'bandpass', 520, 0.6), washGain, out);
+    srcs.push(wash);
+  }
 
-  srcs.push(rotorNoise, thump, turbine, wash);
+  srcs.push(rotorNoise, thump, turbine);
   let stopped = false;
   return {
     out,

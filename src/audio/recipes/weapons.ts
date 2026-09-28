@@ -5,6 +5,7 @@ import { between, vary } from '../pure';
 import { noiseBurst, partials, pingScatter, scatter, tone } from '../synth';
 import type { Recipe, RecipeDef } from '../types';
 import { defineRecipe, mechClick, rasp, thunk, whoosh } from './define';
+import { effort } from './foley';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Disparos
@@ -235,6 +236,7 @@ const grenadeThrow: Recipe = (ac, dest, t0, p) => {
   mechClick(ac, dest, t0 + 0.07, r, { peak: 0.22, f: 1500 });
   partials(ac, dest, t0 + 0.07, { f: 1800, ratios: [1, 2.7], decay: 0.06, peak: 0.1 });
   whoosh(ac, dest, t0 + 0.06, r, { dur: 0.3, peak: 0.24, f0: 300, f1: 1500 });
+  effort(ac, dest, t0 + 0.05, p, { peak: 0.13, dur: 0.24, f0: 125 });
 };
 
 const grenadeBounce: Recipe = (ac, dest, t0, p) => {
@@ -268,9 +270,8 @@ const plateApply: Recipe = (ac, dest, t0, p) => {
   const D = p.duration > 0 ? p.duration : 1.4;
   // velcro/correa al inicio
   noiseBurst(ac, dest, t0, { dur: 0.22, peak: 0.12, attack: 0.02, type: 'highpass', f0: 2600, q: 0.6, rng: r });
-  scatter(ac, dest, t0, { count: 26, span: 0.2, peak: 0.1, fLo: 2500, fHi: 4500, q: 0.8, hitDur: 0.006, rng: r });
   // matraca (clics que se aceleran y suben de tono)
-  const n = 5;
+  const n = 4;
   for (let i = 0; i < n; i++) {
     const f = i / (n - 1);
     const t = t0 + D * (0.2 + 0.6 * f * f * 0.5 + 0.3 * f);
@@ -280,6 +281,7 @@ const plateApply: Recipe = (ac, dest, t0, p) => {
   const te = t0 + D * 0.93;
   partials(ac, dest, te, { f: 380 * p.pitch, ratios: [1, 2.3, 4.1], decay: 0.2, peak: 0.16, attack: 0.001 });
   thunk(ac, dest, te, r, { peak: 0.36, f: 105, dur: 0.1 });
+  effort(ac, dest, t0 + D * 0.2, p, { peak: 0.06, dur: 0.3, f0: 115 });
 };
 
 const plateDone: Recipe = (ac, dest, t0, p) => {

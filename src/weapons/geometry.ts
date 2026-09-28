@@ -105,6 +105,7 @@ export class PartBuilder {
       if (pv) merged.translate(-pv[0], -pv[1], -pv[2]);
       const mesh = new THREE.Mesh(merged, materials.get(b.mat));
       mesh.frustumCulled = false;
+      mesh.userData.matKey = b.mat;
       mesh.matrixAutoUpdate = false;
       mesh.updateMatrix();
       (groups[b.group] as THREE.Group).add(mesh);

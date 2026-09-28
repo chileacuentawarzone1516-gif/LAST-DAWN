@@ -20,10 +20,11 @@ export interface PostSettings {
   mode: PostMode;
   msaa: number;
   bloom: boolean;
+  /** Niveles de la cadena de bloom (1/2, 1/4, … de la resolución); menos = más barato. */
+  bloomLevels: number;
+  /** Pase final ligero (móvil): sin aberración cromática (1 muestra en lugar de 3). */
+  lite: boolean;
 }
-
-/** Niveles de la cadena de bloom (1/2, 1/4, … de la resolución). */
-const BLOOM_LEVELS = 5;
 
 type Uniforms = Record<string, THREE.IUniform>;
 
@@ -52,7 +53,7 @@ export class PostStack {
   /** Llamadas de los pases de post del último frame. */
   postCalls = 0;
 
-  private settings: PostSettings = { mode: 'direct', msaa: 0, bloom: false };
+  private settings: PostSettings = { mode: 'direct', msaa: 0, bloom: false, bloomLevels: 5, lite: false };
   private width = 1;
   private height = 1;
   private readonly rtType: THREE.TextureDataType;
@@ -132,15 +133,23 @@ export class PostStack {
     }
     if (!this.sceneRT || prev.msaa !== next.msaa || prev.mode !== next.mode) this.buildSceneTarget();
     if (next.bloom) {
-      if (this.bloomRTs.length === 0) this.buildBloomTargets();
+      if (this.bloomRTs.length !== next.bloomLevels) this.buildBloomTargets();
     } else {
       this.disposeBloom();
     }
-    if (next.bloom !== prev.bloom || prev.mode !== next.mode) {
+    if (next.bloom !== prev.bloom || next.lite !== prev.lite || prev.mode !== next.mode) {
       if (next.bloom) this.finalMat.defines.USE_BLOOM = '';
       else delete this.finalMat.defines.USE_BLOOM;
+      if (next.lite) this.finalMat.defines.POST_LITE = '';
+      else delete this.finalMat.defines.POST_LITE;
       this.finalMat.needsUpdate = true;
     }
+  }
+
+  /** Libera los render targets (pérdida de contexto): `configure` los recrea. */
+  invalidate(): void {
+    this.disposeTargets();
+    this.settings = { ...this.settings, mode: 'direct' };
   }
 
   /** Tamaño del framebuffer en píxeles de dispositivo. */
@@ -241,7 +250,7 @@ export class PostStack {
 
   private buildBloomTargets(): void {
     this.disposeBloom();
-    for (let i = 0; i < BLOOM_LEVELS; i++) {
+    for (let i = 0; i < this.settings.bloomLevels; i++) {
       const [w, h] = this.bloomSize(i);
       const rt = this.makeTarget(w, h, 0, false);
       rt.texture.name = `post.bloom${i}`;

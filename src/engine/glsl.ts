@@ -178,11 +178,15 @@ float hash12(vec2 p) {
 
 void main() {
   vec2 c = vUv - 0.5;
-  float ca = uChroma * (1.0 + uHurt * 2.5 + uToxic * 0.6) * dot(c, c);
   vec3 col;
+#ifdef POST_LITE
+  col = texture2D(tScene, vUv).rgb;
+#else
+  float ca = uChroma * (1.0 + uHurt * 2.5 + uToxic * 0.6) * dot(c, c);
   col.r = texture2D(tScene, vUv + c * ca).r;
   col.g = texture2D(tScene, vUv).g;
   col.b = texture2D(tScene, vUv - c * ca).b;
+#endif
 #ifdef USE_BLOOM
   col += texture2D(tBloom, vUv).rgb * uBloom;
 #endif

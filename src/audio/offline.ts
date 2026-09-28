@@ -2,7 +2,7 @@
 import { createRng } from '../core/util';
 import { DEFAULT_LEVELS, buildChain, connectVoice } from './engine';
 import { createHeliLoop, createRelayLoop } from './loops';
-import { analyzeSignal, toDb } from './pure';
+import { analyzeSignal, playerVoice, toDb } from './pure';
 import { RECIPES, RECIPE_IDS } from './sfx';
 import { makeParams } from './synth';
 
@@ -22,9 +22,15 @@ export interface RenderResult {
 }
 
 const SR = 44100;
-const LOOPS = ['loop.heli', 'loop.relay'] as const;
+const LOOPS = ['loop.heli', 'loop.heli.lite', 'loop.relay'] as const;
 
-export const soundIds = (): string[] => [...RECIPE_IDS, ...LOOPS];
+/** Recetas que usan la voz del jugador: se renderizan también con voz femenina (sufijo @f). */
+export const VOICE_IDS = [
+  'hurt.melee', 'hurt.armor', 'hurt.spit', 'hurt.heavy', 'hurt.toxic', 'hurt.fall', 'player.death', 'player.jump', 'player.land',
+  'plate.apply', 'grenade.throw',
+] as const;
+
+export const soundIds = (): string[] => [...RECIPE_IDS, ...LOOPS, ...VOICE_IDS.map((i) => `${i}@f`)];
 
 /** Cuenta los nodos creados por métodos create* durante `fn`. */
 function countNodes(ac: OfflineAudioContext, fn: () => void): number {
@@ -50,7 +56,9 @@ function countNodes(ac: OfflineAudioContext, fn: () => void): number {
   return n;
 }
 
-async function renderOnce(id: string, chained: boolean): Promise<{ data: Float32Array[]; nodes: number; expected: number }> {
+async function renderOnce(fullId: string, chained: boolean): Promise<{ data: Float32Array[]; nodes: number; expected: number }> {
+  const female = fullId.endsWith('@f');
+  const id = female ? fullId.slice(0, -2) : fullId;
   const isLoop = (LOOPS as readonly string[]).includes(id);
   const def = RECIPES[id];
   const expected = isLoop ? 2 : (def?.dur ?? 1);
@@ -59,15 +67,16 @@ async function renderOnce(id: string, chained: boolean): Promise<{ data: Float32
   const chain = buildChain(ac, ac.destination, DEFAULT_LEVELS);
   let nodes = 0;
   nodes = countNodes(ac, () => {
-    if (id === 'loop.heli') {
-      const l = createHeliLoop(ac, chained ? chain.buses.sfx.input : ac.destination, 0);
+    if (id === 'loop.heli' || id === 'loop.heli.lite') {
+      const l = createHeliLoop(ac, chained ? chain.buses.sfx.input : ac.destination, 0, id.endsWith('lite'));
       l.set(1, 1, 0.5, 0);
       l.out.gain.setValueAtTime(0.8, 0);
     } else if (id === 'loop.relay') {
       const l = createRelayLoop(ac, chained ? chain.buses.sfx.input : ac.destination, 0);
       l.set(0.6, true, 0);
     } else if (def) {
-      const params = makeParams(createRng(1234));
+      const rng = createRng(1234);
+      const params = makeParams(rng, female ? { voice: playerVoice('female', createRng(99)) } : {});
       if (chained) def.play(ac, connectVoice(ac, chain, def), 0.01, params);
       else {
         const g = ac.createGain();
@@ -81,15 +90,17 @@ async function renderOnce(id: string, chained: boolean): Promise<{ data: Float32
   return { data: [buf.getChannelData(0), buf.getChannelData(1)], nodes, expected };
 }
 
-export async function renderSound(id: string): Promise<RenderResult> {
+export async function renderSound(fullId: string): Promise<RenderResult> {
+  const id = fullId;
+  const baseId = fullId.endsWith('@f') ? fullId.slice(0, -2) : fullId;
   const problems: string[] = [];
   try {
     const raw = await renderOnce(id, false);
     const full = await renderOnce(id, true);
     const sr = analyzeSignal(raw.data, SR);
     const so = analyzeSignal(full.data, SR);
-    const isLoop = (LOOPS as readonly string[]).includes(id);
-    const def = RECIPES[id];
+    const isLoop = (LOOPS as readonly string[]).includes(baseId);
+    const def = RECIPES[baseId];
     if (so.nan + sr.nan > 0) problems.push('NaN');
     if (so.rms < 0.004) problems.push('silencio');
     if (so.peak > 1.0) problems.push('satura');

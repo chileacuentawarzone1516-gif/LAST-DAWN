@@ -51,6 +51,7 @@ function createDevPlayer(ctx: GameContext): PlayerApi {
   };
 }
 
+if (new URLSearchParams(location.search).get('adaptive') === '1') queueMicrotask(() => engine.setAdaptive(true));
 const game = createDevGame({ use: [], overrides: { player: createDevPlayer } });
 const ctx = game.ctx;
 const engine = ctx.engine as Engine;
@@ -144,9 +145,35 @@ setInterval(() => {
 
 vcube.onBeforeRender = () => { vcube.rotation.y += 0.01; };
 
+// Maniquí humanoide (~1.75 m) en viewScene: comprueba la iluminación fija y el post sobre el fondo del mundo.
+const mannequin = new THREE.Group();
+mannequin.visible = false;
+{
+  const part = (geo: THREE.BufferGeometry, mat: MaterialKey, x: number, y: number, z = 0): THREE.Mesh => {
+    const m = new THREE.Mesh(geo, materials.get(mat));
+    m.position.set(x, y, z);
+    mannequin.add(m);
+    return m;
+  };
+  part(new THREE.CapsuleGeometry(0.09, 0.72, 4, 12), 'clothDark', -0.11, 0.46);
+  part(new THREE.CapsuleGeometry(0.09, 0.72, 4, 12), 'clothDark', 0.11, 0.46);
+  part(new THREE.BoxGeometry(0.42, 0.56, 0.24), 'clothOlive', 0, 1.15);
+  part(new THREE.CapsuleGeometry(0.06, 0.55, 4, 10), 'clothOlive', -0.28, 1.12);
+  part(new THREE.CapsuleGeometry(0.06, 0.55, 4, 10), 'clothOlive', 0.28, 1.12);
+  part(new THREE.CylinderGeometry(0.05, 0.06, 0.1, 10), 'skinPale', 0, 1.47);
+  part(new THREE.SphereGeometry(0.11, 20, 14), 'skinPale', 0, 1.62);
+  part(new THREE.BoxGeometry(0.26, 0.08, 0.28), 'gunPolymer', 0, 0.02, 0.03);
+  mannequin.position.set(0.3, -0.875, -2.1);
+  ctx.viewScene.add(mannequin);
+}
+btn('maniquí', () => { mannequin.visible = !mannequin.visible; vcube.visible = !mannequin.visible; });
+
 declare global {
   interface Window {
     __dev?: {
+      mannequin(v: boolean): void;
+      loseContext(): void;
+      restoreContext(): void;
       view(x: number, z: number, yaw: number, pitch: number): void;
       panel(visible: boolean): void;
       genMs: number;
@@ -154,7 +181,11 @@ declare global {
     };
   }
 }
+const loseExt = (): WEBGL_lose_context | null => engine.renderer.getContext().getExtension('WEBGL_lose_context');
 window.__dev = {
+  mannequin(v) { mannequin.visible = v; vcube.visible = !v; },
+  loseContext() { loseExt()?.loseContext(); },
+  restoreContext() { loseExt()?.restoreContext(); },
   view(x, z, yaw, pitch) { devPos.x = x; devPos.z = z; devYaw = yaw; devPitch = pitch; },
   panel(v) { panel.style.display = v ? '' : 'none'; },
   genMs,

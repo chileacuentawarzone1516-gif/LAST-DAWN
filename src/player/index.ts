@@ -54,6 +54,8 @@ export function createPlayer(ctx: GameContext): PlayerApi {
         ctl.syncFromState();
       }
       const H = WEAPON_HANDLING;
+      weapons.refreshVisibility();
+      if (dt > 0) weapons.beginFrame();
       ctl.simulate(dt, weapons, H.recoilRecoverRate, H.recoilRecoverDelayS);
       ctl.applyCamera();
       if (dt > 0) weapons.update(dt);
