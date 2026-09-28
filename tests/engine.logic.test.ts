@@ -78,10 +78,14 @@ describe('cuantización de la sombra', () => {
   it('movimientos sub-texel no cambian el resultado (sin parpadeo)', () => {
     const texel = texelSize(38, 2048);
     snapToTexel(10, 0, 10, right, up, texel, out);
+    // Se parte de un punto ya alineado al retículo: cualquier desplazamiento menor que medio
+    // texel (en ambos sentidos) debe redondear al mismo punto.
     const a = { ...out };
-    snapToTexel(10 + texel * 0.05, 0, 10, right, up, texel, out);
-    expect(out.x).toBeCloseTo(a.x, 6);
-    expect(out.z).toBeCloseTo(a.z, 6);
+    for (const k of [-0.2, -0.05, 0.05, 0.2]) {
+      snapToTexel(a.x + right.x * texel * k, a.y, a.z + right.z * texel * k, right, up, texel, out);
+      expect(out.x).toBeCloseTo(a.x, 6);
+      expect(out.z).toBeCloseTo(a.z, 6);
+    }
   });
 });
 

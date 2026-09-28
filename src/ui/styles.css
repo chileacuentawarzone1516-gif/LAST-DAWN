@@ -257,12 +257,12 @@
 .screen-title { background: radial-gradient(ellipse at 20% 30%, rgba(47, 80, 133, 0.35), transparent 60%), linear-gradient(180deg, rgba(7, 11, 20, 0.9), rgba(7, 11, 20, 0.97)); }
 .title-bg { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(214, 228, 245, 0.025) 0 1px, transparent 1px 4px); }
 .title-wrap { position: relative; margin: auto; width: min(94vw, 78em); padding: 2em 1.5em; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 3em; align-items: center; }
-.title-hero { display: grid; justify-items: start; gap: 0.8em; }
+.title-hero { min-width: 0; display: grid; justify-items: start; gap: 0.8em; }
 .title-eyebrow { font-size: 0.72em; letter-spacing: 0.22em; color: var(--c-dim); text-transform: uppercase; }
 .title-glyph { width: 4.2em; color: var(--c-accent); }
 .title-name { margin: 0; display: grid; gap: 0.1em; font-family: var(--cond); line-height: 0.95; }
-.title-main { font-size: 4.6em; font-weight: 800; letter-spacing: 0.06em; }
-.title-sub { font-size: 1.7em; font-weight: 600; letter-spacing: 0.5em; color: var(--c-accent); }
+.title-main { font-size: 3.5em; font-weight: 800; letter-spacing: 0.03em; white-space: nowrap; }
+.title-sub { font-size: 1.35em; font-weight: 600; letter-spacing: 0.32em; color: var(--c-accent); white-space: nowrap; }
 .title-slogan { margin: 0; font-size: 1.1em; color: var(--c-text); }
 .title-cta { display: grid; gap: 0.7em; justify-items: start; margin-top: 0.6em; }
 .title-cta .btn { font-size: 1.15em; padding: 0.85em 1.8em; }
@@ -357,7 +357,7 @@
 /* ───── Adaptación ───── */
 @media (max-width: 1000px), (max-height: 560px) {
   .title-wrap { gap: 1.6em; padding: 1.2em 1em; }
-  .title-main { font-size: 3.6em; }
+  .title-main { font-size: 3em; }
   .title-side { height: min(26em, 74vh); }
 }
 @media (max-width: 760px) {

@@ -16,7 +16,7 @@ import {
   planReload, recoverSpread, spread01, spreadAfterShot, transferAmmo, transferShell,
 } from '../rules/weapons';
 import type { ReloadPlan, SpreadContext } from '../rules/weapons';
-import type { PlayerController } from '../player/PlayerController';
+import type { WeaponHost } from './host';
 import { GrenadeSystem } from './Grenades';
 import { ViewModel, createViewFrame } from './ViewModel';
 
@@ -79,7 +79,7 @@ export class WeaponSystem {
   private stateRef: object | null = null;
   private readonly ammo = { mag: 0, reserve: 0 };
 
-  constructor(private readonly ctx: GameContext, private readonly ctl: PlayerController) {
+  constructor(private readonly ctx: GameContext, private readonly ctl: WeaponHost) {
     this.viewmodel = new ViewModel(ctx);
     this.grenades = new GrenadeSystem(ctx);
     this.grenades.onShake = (a) => ctl.shake(a * 0.9);

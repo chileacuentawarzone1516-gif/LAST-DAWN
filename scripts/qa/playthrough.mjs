@@ -232,7 +232,7 @@ async function main() {
     R.check("'extraction:landed' una vez", (await bot.count('extraction:landed')) === 1);
     const hp = (await bot.run(pageFns.heliPos)) ?? { x: MAP.lz.center.x, z: MAP.lz.center.z };
     await bot.teleport(hp.x + 5, hp.z, 0, 0.3);
-    const rb = await holdE(bot, MISSIONS.extraction.boardHoldS + 4, 's.match.phase === "won"');
+    const rb = await holdE(bot, MISSIONS.extraction.boardHoldS + MISSIONS.extraction.departDurationS + 4, 's.match.phase === "won"');
     s = await bot.snap();
     R.check("abordar con hold → victoria 'extracted'", rb.ok && s.match.phase === 'won' && s.match.endReason === 'extracted', `phase=${s.match.phase} reason=${s.match.endReason} (${fx(rb.simS, 1)} s)`);
     await bot.step(TIMERS.endScreenDelayS + 1);
@@ -313,7 +313,7 @@ async function main() {
     R.check('el helicóptero aterriza pasadas las 12:00', l.ok);
     const hp = (await bot.run(pageFns.heliPos)) ?? { x: MAP.lz.center.x, z: MAP.lz.center.z };
     await bot.teleport(hp.x + 5, hp.z, 0, 0.3);
-    const b = await holdE(bot, MISSIONS.extraction.boardHoldS + 4, 's.match.phase === "won"');
+    const b = await holdE(bot, MISSIONS.extraction.boardHoldS + MISSIONS.extraction.departDurationS + 4, 's.match.phase === "won"');
     R.check('se puede abordar y ganar tras el sellado', b.ok && (await bot.snap()).match.endReason === 'extracted');
   });
 

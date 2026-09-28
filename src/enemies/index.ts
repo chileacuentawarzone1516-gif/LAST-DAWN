@@ -215,6 +215,8 @@ export function createEnemies(ctx: GameContext): EnemiesDevApi {
       e.stateT = 0;
       sys.alerted(e);
     }
+    // El estado de la misión debe reflejar el impacto en el mismo instante que los eventos.
+    if (e.type === 'warden') syncWardenState();
     const helmBroke = res.helmetBroken;
     const killed = res.killed;
     const headshot = res.headshotKill;
