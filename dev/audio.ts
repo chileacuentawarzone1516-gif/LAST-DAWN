@@ -62,11 +62,12 @@ declare global {
       info(): { ready: boolean; errors: number; lastError: string; voices: number; stats: unknown; contexts: number };
       emit(n: number): void;
       unlock(): void;
-      wrote: () => boolean;
+      peak(): number;
     };
     __audioContexts?: number;
   }
 }
+let peakVoices = 0;
 window.__audioQa = {
   ids: soundIds,
   render: renderSound,
@@ -75,14 +76,20 @@ window.__audioQa = {
     stats: audio.engine.stats, contexts: window.__audioContexts ?? 0,
   }),
   emit: (n) => {
-    // ráfaga de estrés: n disparos e impactos
-    for (let i = 0; i < n; i++) {
-      ctx.bus.emit('player:shot', { weapon: 'smg', origin: { x: 0, y: 1.7, z: 0 }, dir: { x: 0, y: 0, z: -1 }, end: { x: 0, y: 1, z: -20 }, hit: 'world', noise: 55, suppressed: false });
-      ctx.bus.emit('bullet:impact', { point: { x: i % 7, y: 1, z: -10 }, normal: { x: 0, y: 1, z: 0 }, surface: 'concrete' });
-    }
+    // ráfaga de estrés repartida en el tiempo: n disparos + impactos alrededor del oyente cada ~8 ms
+    let i = 0;
+    const id = window.setInterval(() => {
+      const c = ctx.camera.position;
+      const weapon = (['smg', 'shotgun', 'assault', 'dmr'] as const)[i % 4] as WeaponId;
+      ctx.bus.emit('player:shot', { weapon, origin: { x: c.x, y: c.y, z: c.z }, dir: { x: 0, y: 0, z: -1 }, end: { x: c.x, y: 1, z: c.z - 20 }, hit: 'world', noise: 55, suppressed: false });
+      ctx.bus.emit('bullet:impact', { point: { x: c.x + (i % 7) - 3, y: 1, z: c.z - 10 }, normal: { x: 0, y: 1, z: 0 }, surface: SURFACES[i % SURFACES.length] as SurfaceKind });
+      ctx.bus.emit('enemy:vocal', { id: i, type: (ENEMY_TYPES[i % 4] as EnemyType), pos: { x: c.x + 8, y: 1, z: c.z - 8 }, kind: VOCAL_KINDS[i % 5] as (typeof VOCAL_KINDS)[number] });
+      peakVoices = Math.max(peakVoices, audio.engine.voiceCount);
+      if (++i >= n) window.clearInterval(id);
+    }, 8);
   },
   unlock: () => game.beginRun(),
-  wrote: () => true,
+  peak: () => peakVoices,
 };
 
 if (!qa) {

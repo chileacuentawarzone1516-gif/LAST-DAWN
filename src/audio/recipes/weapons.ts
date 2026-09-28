@@ -301,7 +301,7 @@ export function weaponRecipes(): RecipeDef[] {
     defineRecipe('reload.rifle', 'foley', 60, rel('carbine'), reloadRecipe('rifle', rel('carbine')), { send: 0.08 }),
     defineRecipe('reload.dmr', 'foley', 60, rel('dmr'), reloadRecipe('dmr', rel('dmr')), { send: 0.08 }),
     defineRecipe('reload.shotgun', 'foley', 60, WEAPONS.shotgun.reloadPerShellS ?? 0.55, reloadRecipe('shotgun', WEAPONS.shotgun.reloadPerShellS ?? 0.55), { send: 0.08 }),
-    defineRecipe('dry.light', 'foley', 55, 0.12, dryLight, { send: 0.05 }),
+    defineRecipe('dry.light', 'foley', 55, 0.12, dryLight, { send: 0.05, minDur: 0.02 }),
     defineRecipe('dry.rifle', 'foley', 55, 0.12, dryRifle, { send: 0.05 }),
     defineRecipe('dry.heavy', 'foley', 55, 0.14, dryHeavy, { send: 0.06 }),
     defineRecipe('weapon.switch', 'foley', 50, 0.3, weaponSwitch, { send: 0.05 }),

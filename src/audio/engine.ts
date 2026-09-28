@@ -238,7 +238,13 @@ export class AudioEngine {
     return this.ac ? this.ac.currentTime : 0;
   }
 
+  /** Voces vivas según el limitador (las canceladas ya no cuentan). */
   get voiceCount(): number {
+    return this.limiter.count();
+  }
+
+  /** Voces con nodos aún conectados (incluye fundidos de salida). */
+  get nodeVoices(): number {
     return this.voices.size;
   }
 
@@ -388,6 +394,7 @@ export class AudioEngine {
     const chain = this.chain;
     if (!ac || !chain || this.muted || ac.state !== 'running') return 0;
     const now = ac.currentTime;
+    this.purge(now);
 
     let dist = 0;
     let fade = 1;

@@ -52,8 +52,11 @@ try {
   // 3) Tras unlock(): estrés de eventos, sin errores y con voces acotadas
   await ev(() => window.__audioQa.unlock());
   await page.waitForTimeout(400);
-  await ev(() => window.__audioQa.emit(120));
-  await page.waitForTimeout(400);
+  await ev(() => window.__audioQa.emit(150));
+  await page.waitForTimeout(2500);
+  const peakVoices = await ev(() => window.__audioQa.peak());
+  console.log('pico de voces simultáneas:', peakVoices);
+  if (peakVoices > 40) { console.log('FALLA: voces por encima del límite'); failed = true; }
   const post = await ev(() => window.__audioQa.info());
   console.log('estado tras estrés:', JSON.stringify(post));
   if (!post.ready) { console.log('FALLA: contexto no está en marcha tras unlock()'); failed = true; }
