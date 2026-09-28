@@ -7,17 +7,22 @@ import { createAudio } from '../audio';
 import { createPlayer } from '../player';
 import { createEnemies } from '../enemies';
 import { createMissions } from '../missions';
+import { createCharacter } from '../character';
+import { createTouch } from '../touch';
 import {
-  createStubAudio, createStubEnemies, createStubMissions, createStubPlayer, createStubUi, createStubWorld,
+  createStubAudio, createStubCharacter, createStubEnemies, createStubMissions, createStubPlayer, createStubTouch,
+  createStubUi, createStubWorld,
 } from './stubs';
 
-export type ModuleName = 'world' | 'ui' | 'audio' | 'player' | 'enemies' | 'missions';
+export type ModuleName = 'world' | 'character' | 'touch' | 'ui' | 'audio' | 'player' | 'enemies' | 'missions';
 
 const REAL: ModuleFactories = {
-  world: createWorld, ui: createUi, audio: createAudio, player: createPlayer, enemies: createEnemies, missions: createMissions,
+  world: createWorld, character: createCharacter, touch: createTouch, ui: createUi, audio: createAudio,
+  player: createPlayer, enemies: createEnemies, missions: createMissions,
 };
 const STUB: ModuleFactories = {
-  world: createStubWorld, ui: createStubUi, audio: createStubAudio, player: createStubPlayer,
+  world: createStubWorld, character: createStubCharacter, touch: createStubTouch, ui: createStubUi,
+  audio: createStubAudio, player: createStubPlayer,
   enemies: createStubEnemies, missions: createStubMissions,
 };
 

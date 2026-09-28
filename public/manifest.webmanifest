@@ -1,0 +1,16 @@
+{
+  "name": "DEAD SIGNAL: EXCLUSION ZONE",
+  "short_name": "Dead Signal",
+  "description": "FPS de extracción con zombis en el navegador. Sin descargas, todo procedural.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#070b14",
+  "theme_color": "#070b14",
+  "lang": "es",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

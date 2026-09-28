@@ -1,6 +1,7 @@
 import { MAP, PLAYER, STARTING_LOADOUT, WEAPONS } from '../config';
 import type { VendorId } from '../config';
-import type { EndReason, MissionStatus, Vec3, WeaponId, ZoneId } from './types';
+import { defaultProfile } from '../rules/character';
+import type { EndReason, MissionStatus, PlayerProfile, Vec3, WeaponId, ZoneId } from './types';
 
 /**
  * Estado de la partida: DATOS PLANOS serializables (sin three.js) — fuente única de
@@ -119,6 +120,11 @@ export interface UiState {
 }
 
 export interface RunState {
+  /**
+   * Perfil del operativo (nombre, género, apariencia). Persistente entre partidas: resetRunState lo
+   * conserva. Sólo se escribe con updateProfile() (core/profile.ts).
+   */
+  profile: PlayerProfile;
   flow: FlowState;
   player: PlayerState;
   match: MatchState;
@@ -131,8 +137,9 @@ export function createWeaponSlot(id: WeaponId, reserveMags: number): WeaponSlotS
   return { id, mag: def.magSize, reserve: Math.min(def.reserveMax, def.magSize * reserveMags) };
 }
 
-export function createRunState(): RunState {
+export function createRunState(profile: PlayerProfile = defaultProfile()): RunState {
   return {
+    profile,
     flow: 'title',
     player: {
       alive: true,
@@ -184,6 +191,7 @@ export function createRunState(): RunState {
 
 /** Reinicia el estado in-place conservando la identidad del objeto raíz. */
 export function resetRunState(state: RunState, flow: FlowState = state.flow): void {
-  Object.assign(state, createRunState());
+  const profile = state.profile;
+  Object.assign(state, createRunState(profile));
   state.flow = flow;
 }

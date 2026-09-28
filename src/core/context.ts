@@ -27,6 +27,20 @@ export interface InputApi {
   readonly locked: boolean;
   /** Si es false, las acciones no se registran (menús/pausa). */
   enabled: boolean;
+  /** true en dispositivos táctiles (sin pointer lock: `locked` es siempre true). */
+  readonly touch: boolean;
+  /**
+   * Movimiento analógico en [-1,1] (x = derecha, y = adelante): combina teclado (digital) y joystick
+   * táctil. El jugador debe usar estos ejes (no isDown('forward')…) para que el joystick escale la velocidad.
+   */
+  readonly moveX: number;
+  readonly moveY: number;
+  /** Joystick táctil: fija el vector de movimiento analógico (0,0 lo suelta). */
+  setStick(x: number, y: number): void;
+  /** Suma un delta de mirada expresado en píxeles equivalentes de ratón (arrastre táctil, giroscopio). */
+  addLook(dx: number, dy: number): void;
+  /** Fija una acción como pulsada/soltada (botones táctiles, scripts de QA). */
+  inject(action: Action, down: boolean): void;
   /** Pide pointer lock; DEBE llamarse dentro de un gesto del usuario. Nunca lanza. */
   requestLock(): Promise<boolean>;
   releaseLock(): void;
@@ -270,16 +284,41 @@ export interface AudioApi extends System {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PERSONAJE (src/character) — maniquí 3D del operativo para la personalización
+// ─────────────────────────────────────────────────────────────────────────────
+export interface CharacterAnchor {
+  /** Centro del área donde se ve el modelo, en fracciones de pantalla (0,0 = arriba-izquierda; 1,1 = abajo-derecha). */
+  x: number;
+  y: number;
+  /** Altura del modelo como fracción de la altura de pantalla (p. ej. 0.8). */
+  height: number;
+}
+
+export type CharacterPose = 'idle' | 'salute' | 'ready';
+
+export interface CharacterApi extends System {
+  /** Muestra el maniquí giratorio (se dibuja en viewScene, encima del mundo). */
+  showPreview(anchor: CharacterAnchor): void;
+  hidePreview(): void;
+  readonly previewVisible: boolean;
+  /** Recoloca el modelo (cambio de layout/orientación) sin reconstruirlo. */
+  setAnchor(anchor: CharacterAnchor): void;
+  /** Gira el modelo (arrastre del usuario), en radianes. */
+  rotate(dyaw: number): void;
+  setPose(pose: CharacterPose): void;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CONTEXTO
 // ─────────────────────────────────────────────────────────────────────────────
 /**
  * Contexto compartido. Orden de construcción (un módulo sólo puede usar en su
  * FACTORY los anteriores; el resto está disponible en update()):
  *   bus, state, input, interactions, engine  (persistentes, siempre presentes)
- *   world → ui → audio                        (persistentes)
+ *   world → character → ui → audio → touch    (persistentes; touch sólo si input.touch)
  *   player → enemies → missions               (por partida: se recrean al reiniciar)
  *
- * Orden de update por frame: interactions, player, enemies, missions, world, fx, ui, audio.
+ * Orden de update por frame: interactions, player, enemies, missions, world, fx, character, ui, audio, touch.
  */
 export interface GameContext {
   readonly bus: EventBus;
@@ -295,8 +334,11 @@ export interface GameContext {
   readonly materials: MaterialsApi;
   readonly fx: FxApi;
   world: WorldApi;
+  character: CharacterApi;
   ui: UiApi;
   audio: AudioApi;
+  /** Controles táctiles (sólo existe en dispositivos táctiles; en escritorio es un sistema vacío). */
+  touch: System;
   player: PlayerApi;
   enemies: EnemiesApi;
   missions: MissionsApi;

@@ -1,4 +1,5 @@
 import { Game } from './game/Game';
+import { initialQuality, isTouchDevice } from './core/device';
 import { installQa } from './game/qa';
 
 function fail(message: string): void {
@@ -17,8 +18,10 @@ function hasWebGL2(): boolean {
 function main(): void {
   const params = new URLSearchParams(window.location.search);
   const qa = params.get('qa') === '1';
-  const q = params.get('q');
-  const quality = q === 'low' || q === 'medium' || q === 'high' ? q : undefined;
+  const touch = isTouchDevice();
+  const quality = initialQuality(touch);
+  // El CSS se adapta con estos atributos (entrada táctil/ratón).
+  document.documentElement.dataset.input = touch ? 'touch' : 'mouse';
 
   if (!hasWebGL2()) {
     fail('Este juego necesita WebGL 2. Actualiza el navegador o activa la aceleración por hardware.');
@@ -35,7 +38,7 @@ function main(): void {
   requestAnimationFrame(() =>
     setTimeout(() => {
       try {
-        const game = new Game({ canvas, qa, quality });
+        const game = new Game({ canvas, qa, quality, touch });
         if (qa) installQa(game);
         game.start();
         document.getElementById('boot')?.remove();

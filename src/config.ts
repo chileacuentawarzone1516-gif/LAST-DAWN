@@ -10,7 +10,7 @@
  *  - Cada agente/módulo edita SÓLO su sección; para añadir claves nuevas, usar
  *    ediciones puntuales (nunca reescribir el fichero entero).
  */
-import type { EnemyType, MissionId, WeaponId, ZoneId } from './core/types';
+import type { Appearance, EnemyType, Gender, MissionId, WeaponId, ZoneId } from './core/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TEMA (UI + colores de juego compartidos)
@@ -790,4 +790,122 @@ export const WORLD = {
   pointLights: true,
   /** Presupuestos que vigila el test de rendimiento del mundo. */
   budget: { drawCalls: 300, triangles: 600_000, buildMs: 1500 },
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PERSONAJE (personalización del operativo)
+// ─────────────────────────────────────────────────────────────────────────────
+export interface CharacterPreset {
+  name: string;
+  tagline: string;
+  appearance: Appearance;
+}
+
+export const CHARACTER = {
+  storageKey: 'deadsignal.profile.v1',
+  nameMinLen: 1,
+  nameMaxLen: 16,
+  defaultName: { male: 'Marcos', female: 'Lucía' } as Record<Gender, string>,
+  randomNames: {
+    male: ['Marcos', 'Diego', 'Iván', 'Rubén', 'Adrián', 'Hugo', 'Nico', 'Sergio', 'Álex', 'Bruno'],
+    female: ['Lucía', 'Elena', 'Marta', 'Valeria', 'Noa', 'Irene', 'Paula', 'Sara', 'Alba', 'Nerea'],
+  } as Record<Gender, string[]>,
+  genders: [
+    { id: 'male', name: 'Masculino' },
+    { id: 'female', name: 'Femenino' },
+  ] as { id: Gender; name: string }[],
+  skinTones: [
+    { id: 'clara', name: 'Clara', color: 0xf1cfb0 },
+    { id: 'trigueña', name: 'Trigueña', color: 0xdcae86 },
+    { id: 'canela', name: 'Canela', color: 0xc08a5c },
+    { id: 'morena', name: 'Morena', color: 0x96623d },
+    { id: 'oscura', name: 'Oscura', color: 0x6b4229 },
+    { id: 'ebano', name: 'Ébano', color: 0x452b1f },
+  ],
+  hairColors: [
+    { id: 'negro', name: 'Negro', color: 0x15110f },
+    { id: 'castano-oscuro', name: 'Castaño oscuro', color: 0x3a271b },
+    { id: 'castano', name: 'Castaño', color: 0x5b3a22 },
+    { id: 'rubio', name: 'Rubio', color: 0xc9a25a },
+    { id: 'pelirrojo', name: 'Pelirrojo', color: 0x9a3f1e },
+    { id: 'gris', name: 'Gris', color: 0x8c8f94 },
+    { id: 'blanco', name: 'Blanco', color: 0xd8dade },
+    { id: 'verde', name: 'Verde señal', color: 0x2fbf8a },
+  ],
+  hairStyles: {
+    male: [
+      { id: 'rapado', name: 'Rapado' },
+      { id: 'corto', name: 'Corto' },
+      { id: 'peinado', name: 'Peinado atrás' },
+      { id: 'rizado', name: 'Rizado' },
+      { id: 'melena', name: 'Melena' },
+      { id: 'mohicano', name: 'Mohicano' },
+    ],
+    female: [
+      { id: 'pixie', name: 'Corte pixie' },
+      { id: 'media', name: 'Media melena' },
+      { id: 'larga', name: 'Larga' },
+      { id: 'coleta', name: 'Coleta' },
+      { id: 'trenzas', name: 'Trenzas' },
+      { id: 'mono', name: 'Moño' },
+    ],
+  } as Record<Gender, { id: string; name: string }[]>,
+  /** jacket/pants: ropa; accent: detalles; glove: guantes y puños del viewmodel. */
+  outfits: [
+    { id: 'militar', name: 'Militar', jacket: 0x4a5236, pants: 0x33382a, accent: 0x8a7a4a, glove: 0x22241f },
+    { id: 'urbano', name: 'Urbano', jacket: 0x2b3442, pants: 0x1e232b, accent: 0xd0d6de, glove: 0x15181c },
+    { id: 'sanitario', name: 'Sanitario', jacket: 0xd9dde2, pants: 0x8fa3b4, accent: 0xd93a3a, glove: 0x2b3a4a },
+    { id: 'obrero', name: 'Obrero', jacket: 0xc9791a, pants: 0x2c3038, accent: 0xe8e04a, glove: 0x3b342a },
+    { id: 'sigilo', name: 'Sigilo', jacket: 0x15181d, pants: 0x101216, accent: 0x3fe0b0, glove: 0x0b0c0e },
+    { id: 'desierto', name: 'Desierto', jacket: 0x9a8360, pants: 0x6f5f45, accent: 0x3a2f20, glove: 0x4a3f2c },
+    { id: 'artico', name: 'Ártico', jacket: 0xc8d2dc, pants: 0x5e6b78, accent: 0x3b82c4, glove: 0x2a3540 },
+    { id: 'carmesi', name: 'Carmesí', jacket: 0x6d1f26, pants: 0x25181a, accent: 0xe0b34a, glove: 0x1a1113 },
+  ],
+  accessories: [
+    { id: 'none', name: 'Ninguno' },
+    { id: 'cap', name: 'Gorra' },
+    { id: 'beanie', name: 'Gorro' },
+    { id: 'goggles', name: 'Gafas tácticas' },
+    { id: 'bandana', name: 'Pañuelo' },
+    { id: 'headset', name: 'Auriculares' },
+  ],
+  presets: {
+    male: [
+      { name: 'Veterano', tagline: 'Ex-militar curtido', appearance: { skin: 1, hairStyle: 0, hairColor: 5, outfit: 0, accessory: 0 } },
+      { name: 'Rastreador', tagline: 'Habla poco, dispara mejor', appearance: { skin: 3, hairStyle: 3, hairColor: 0, outfit: 5, accessory: 3 } },
+      { name: 'Técnico', tagline: 'Arregla lo que otros rompen', appearance: { skin: 0, hairStyle: 2, hairColor: 2, outfit: 3, accessory: 1 } },
+      { name: 'Médico', tagline: 'Juró no hacer daño… a los vivos', appearance: { skin: 2, hairStyle: 1, hairColor: 1, outfit: 2, accessory: 5 } },
+      { name: 'Fantasma', tagline: 'Entra y sale sin dejar rastro', appearance: { skin: 4, hairStyle: 5, hairColor: 7, outfit: 4, accessory: 4 } },
+      { name: 'Polar', tagline: 'Llegó desde la base ártica', appearance: { skin: 5, hairStyle: 4, hairColor: 6, outfit: 6, accessory: 2 } },
+    ],
+    female: [
+      { name: 'Capitana', tagline: 'Lidera desde el frente', appearance: { skin: 1, hairStyle: 3, hairColor: 2, outfit: 0, accessory: 0 } },
+      { name: 'Exploradora', tagline: 'Conoce cada callejón', appearance: { skin: 3, hairStyle: 4, hairColor: 0, outfit: 5, accessory: 3 } },
+      { name: 'Ingeniera', tagline: 'Un soplete y un plan', appearance: { skin: 2, hairStyle: 5, hairColor: 4, outfit: 3, accessory: 1 } },
+      { name: 'Doctora', tagline: 'Cura primero, pregunta después', appearance: { skin: 0, hairStyle: 1, hairColor: 3, outfit: 2, accessory: 5 } },
+      { name: 'Sombra', tagline: 'Invisible hasta que es tarde', appearance: { skin: 4, hairStyle: 0, hairColor: 7, outfit: 4, accessory: 4 } },
+      { name: 'Ventisca', tagline: 'Fría, precisa, implacable', appearance: { skin: 5, hairStyle: 2, hairColor: 6, outfit: 6, accessory: 2 } },
+    ],
+  } as Record<Gender, CharacterPreset[]>,
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TÁCTIL / MÓVIL
+// ─────────────────────────────────────────────────────────────────────────────
+export const TOUCH = {
+  /** Multiplicador sobre los px de arrastre para igualarlos a los px de ratón (PLAYER.mouseSensitivity). */
+  lookMult: 1.7,
+  /** Multiplicador adicional al apuntar (ADS) con el dedo. */
+  lookAdsMult: 0.6,
+  /** Radio del joystick (px CSS) y zona muerta (0..1). */
+  stickRadius: 58,
+  stickDeadZone: 0.12,
+  /** Empujar el joystick más allá de este umbral (0..1) activa correr automáticamente. */
+  autoSprintThreshold: 0.92,
+  /** Vibración háptica (ms) al disparar / recibir daño / recoger (si el dispositivo la soporta). */
+  haptics: { fire: 8, hit: 25, damage: 60, pickup: 12 },
+  /** Preset gráfico por defecto en dispositivos táctiles (se puede cambiar en Ajustes). */
+  defaultQuality: 'low' as QualityLevel,
+  /** Pantalla mínima recomendada (px CSS) para el modo apaisado. */
+  minLandscapeHeight: 320,
 } as const;

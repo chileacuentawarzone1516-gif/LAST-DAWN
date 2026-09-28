@@ -49,3 +49,25 @@ export type MaterialKey =
   | 'armorPlate' | 'wardenArmor' | 'wardenHelmet' | 'helicopterBody'
   // añadidos por el motor
   | 'grass' | 'water' | 'roofing';
+
+// ── Perfil del jugador (personalización) ───────────────────────────────────
+export type Gender = 'male' | 'female';
+
+/**
+ * Apariencia del operativo. Todos los campos son ÍNDICES en las tablas de `CHARACTER`
+ * (config.ts): skin → skinTones, hairStyle → hairStyles[gender], hairColor → hairColors,
+ * outfit → outfits, accessory → accessories.
+ */
+export interface Appearance {
+  skin: number;
+  hairStyle: number;
+  hairColor: number;
+  outfit: number;
+  accessory: number;
+}
+
+export interface PlayerProfile {
+  name: string;
+  gender: Gender;
+  appearance: Appearance;
+}

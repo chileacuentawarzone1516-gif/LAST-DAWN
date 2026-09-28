@@ -5,10 +5,10 @@
 import * as THREE from 'three';
 import { MAP, PLAYER } from '../config';
 import type {
-  AudioApi, EnemiesApi, GameContext, MissionsApi, MoveResult, NavGrid, PlayerApi, UiApi, WorldApi,
+  AudioApi, CharacterApi, EnemiesApi, GameContext, MissionsApi, MoveResult, NavGrid, PlayerApi, UiApi, WorldApi,
 } from '../core/context';
 import { clamp } from '../core/util';
-import type { Vec2, Vec3, ZoneId } from '../core/types';
+import type { System, Vec2, Vec3, ZoneId } from '../core/types';
 import { zoneAt } from '../rules/zones';
 
 export function createStubNav(): NavGrid {
@@ -113,8 +113,8 @@ export function createStubPlayer(ctx: GameContext): PlayerApi {
       if (enabled) {
         yaw -= i.lookDX * PLAYER.mouseSensitivity;
         pitch = clamp(pitch - i.lookDY * PLAYER.mouseSensitivity, -1.5, 1.5);
-        const f = (i.isDown('forward') ? 1 : 0) - (i.isDown('back') ? 1 : 0);
-        const s = (i.isDown('right') ? 1 : 0) - (i.isDown('left') ? 1 : 0);
+        const f = i.moveY;
+        const s = i.moveX;
         const speed = i.isDown('sprint') ? PLAYER.sprintSpeed : PLAYER.walkSpeed;
         const dx = (-Math.sin(yaw) * f + Math.cos(yaw) * s) * speed * dt;
         const dz = (-Math.cos(yaw) * f - Math.sin(yaw) * s) * speed * dt;
@@ -175,3 +175,26 @@ export function createStubAudio(_ctx: GameContext): AudioApi {
 }
 
 export type { Vec3 };
+
+export function createStubCharacter(_ctx: GameContext): CharacterApi {
+  let visible = false;
+  return {
+    showPreview() {
+      visible = true;
+    },
+    hidePreview() {
+      visible = false;
+    },
+    get previewVisible() {
+      return visible;
+    },
+    setAnchor() {},
+    rotate() {},
+    setPose() {},
+    update() {},
+  };
+}
+
+export function createStubTouch(_ctx: GameContext): System {
+  return { update() {} };
+}

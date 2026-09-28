@@ -29,6 +29,8 @@ export class Input implements InputApi {
   wheelDelta = 0;
   lookDX = 0;
   lookDY = 0;
+  private stickX = 0;
+  private stickY = 0;
   private lockedNow = false;
   private readonly down = new Set<Action>();
   private readonly pressed = new Set<Action>();
@@ -36,9 +38,11 @@ export class Input implements InputApi {
   private readonly cleanups: Array<() => void> = [];
   /** En modo QA no se exige pointer lock. */
   private readonly qa: boolean;
+  readonly touch: boolean;
 
-  constructor(private readonly canvas: HTMLElement, private readonly bus: EventBus, qa = false) {
+  constructor(private readonly canvas: HTMLElement, private readonly bus: EventBus, qa = false, touch = false) {
     this.qa = qa;
+    this.touch = touch;
     const on = <K extends keyof DocumentEventMap>(t: K, h: (e: DocumentEventMap[K]) => void, target: Document | Window = document) => {
       target.addEventListener(t, h as EventListener);
       this.cleanups.push(() => target.removeEventListener(t, h as EventListener));
@@ -59,7 +63,30 @@ export class Input implements InputApi {
   }
 
   get locked(): boolean {
-    return this.lockedNow || this.qa;
+    return this.lockedNow || this.qa || this.touch;
+  }
+
+  get moveX(): number {
+    if (!this.enabled) return 0;
+    const k = (this.down.has('right') ? 1 : 0) - (this.down.has('left') ? 1 : 0);
+    return Math.max(-1, Math.min(1, k + this.stickX));
+  }
+
+  get moveY(): number {
+    if (!this.enabled) return 0;
+    const k = (this.down.has('forward') ? 1 : 0) - (this.down.has('back') ? 1 : 0);
+    return Math.max(-1, Math.min(1, k + this.stickY));
+  }
+
+  setStick(x: number, y: number): void {
+    this.stickX = Math.max(-1, Math.min(1, x));
+    this.stickY = Math.max(-1, Math.min(1, y));
+  }
+
+  addLook(dx: number, dy: number): void {
+    if (!this.enabled) return;
+    this.lookDX += dx;
+    this.lookDY += dy;
   }
 
   isDown(action: Action): boolean {
@@ -72,13 +99,28 @@ export class Input implements InputApi {
     return this.enabled && this.released.has(action);
   }
 
-  /** Inyecta una acción (scripts de QA / tests). */
+  /** Fija una acción (botones táctiles, scripts de QA / tests). */
   inject(action: Action, isDown: boolean): void {
     this.set(action, isDown);
   }
 
   async requestLock(): Promise<boolean> {
     if (this.qa) return true;
+    if (this.touch) {
+      // Sin pointer lock en táctil: pantalla completa y bloqueo de orientación (best-effort, requiere gesto).
+      try {
+        const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
+        if (!document.fullscreenElement) await (el.requestFullscreen?.({ navigationUI: 'hide' }) ?? el.webkitRequestFullscreen?.());
+      } catch {
+        /* iOS Safari no permite fullscreen en iPhone: se ignora */
+      }
+      try {
+        await (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape');
+      } catch {
+        /* no soportado o no permitido */
+      }
+      return true;
+    }
     try {
       // Algunos navegadores devuelven una promesa; otros undefined.
       const r = (this.canvas.requestPointerLock as unknown as (o?: unknown) => Promise<void> | void).call(this.canvas, { unadjustedMovement: true });
@@ -124,6 +166,8 @@ export class Input implements InputApi {
 
   private releaseAll(): void {
     for (const a of ACTIONS) this.set(a, false);
+    this.stickX = 0;
+    this.stickY = 0;
   }
 
   private onKey(e: KeyboardEvent, isDown: boolean): void {
@@ -140,19 +184,20 @@ export class Input implements InputApi {
   }
 
   private onMouse(e: MouseEvent, isDown: boolean): void {
-    if (!this.locked) return;
+    // En táctil los toques generan mousedown/up sintéticos: se ignoran (los botones inyectan acciones).
+    if (this.touch || !this.locked) return;
     if (e.button === 0) this.set('fire', isDown);
     else if (e.button === 2) this.set('aim', isDown);
   }
 
   private onMove(e: MouseEvent): void {
-    if (!this.lockedNow) return;
+    if (this.touch || !this.lockedNow) return;
     this.lookDX += e.movementX;
     this.lookDY += e.movementY;
   }
 
   private onWheel(e: WheelEvent): void {
-    if (!this.locked) return;
+    if (this.touch || !this.locked) return;
     this.wheelDelta += Math.sign(e.deltaY);
   }
 }

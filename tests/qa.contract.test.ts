@@ -219,8 +219,13 @@ describe('(a) fronteras de módulo', () => {
 // (b) core/ y rules/ puros
 // ─────────────────────────────────────────────────────────────────────────────
 const DOM_RE = /(?<![.\w$])(document|window|navigator|localStorage|sessionStorage|requestAnimationFrame|cancelAnimationFrame|HTMLElement|HTMLCanvasElement|AudioContext|OffscreenCanvas|getElementById|querySelector)\b/g;
-/** core/input.ts ES el adaptador de DOM (teclado, ratón, pointer lock): excepción por diseño. */
-const DOM_ALLOW = new Set(['src/core/input.ts']);
+/**
+ * Adaptadores del navegador dentro de core/ (excepciones por diseño): input.ts (teclado, ratón,
+ * pointer lock, táctil), device.ts (detección de dispositivo) y profile.ts (localStorage con try/catch).
+ */
+const DOM_ALLOW = new Set(['src/core/input.ts', 'src/core/device.ts', 'src/core/profile.ts']);
+/** core/ puede importar reglas PURAS concretas (sin ciclos: rules/character sólo importa config y core/types|util). */
+const CORE_RULES_ALLOW = new Set(['src/core/state.ts', 'src/core/profile.ts']);
 
 describe('(b) core/ y rules/ puros', () => {
   const pure = SRC_FILES.filter((f) => ['core', 'rules'].includes(moduleOf(f)));
@@ -237,7 +242,7 @@ describe('(b) core/ y rules/ puros', () => {
     expect(bad, `\n${bad.join('\n')}`).toEqual([]);
   });
 
-  it('no tocan el DOM (salvo core/input.ts, el adaptador de entrada)', () => {
+  it('no tocan el DOM (salvo los adaptadores core/input|device|profile)', () => {
     const bad: string[] = [];
     for (const f of pure) {
       if (DOM_ALLOW.has(rel(f))) continue;
@@ -255,7 +260,9 @@ describe('(b) core/ y rules/ puros', () => {
         if (!imp.spec.startsWith('.')) continue;
         const t = relative(SRC, resolve(dirname(f), imp.spec)).split(sep).join('/');
         const tMod = t.split('/')[0] as string;
-        const ok = tMod === 'core' || t === 'config' || (mod === 'rules' && tMod === 'rules');
+        const ok =
+          tMod === 'core' || t === 'config' || (mod === 'rules' && tMod === 'rules') ||
+          (CORE_RULES_ALLOW.has(rel(f)) && t === 'rules/character');
         if (!ok) bad.push(`${rel(f)}:${imp.line} → ${imp.spec}`);
       }
     }

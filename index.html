@@ -2,10 +2,17 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>DEAD SIGNAL: EXCLUSION ZONE</title>
     <meta name="description" content="FPS de extracción con zombis en un distrito industrial en cuarentena. Un jugador, 100% procedural, en el navegador." />
     <meta name="theme-color" content="#070b14" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Dead Signal" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
     <meta name="robots" content="index, follow" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="DEAD SIGNAL: EXCLUSION ZONE" />
@@ -18,9 +25,12 @@
   </head>
   <body>
     <style>
-      html, body { margin: 0; height: 100%; background: #070b14; color: #d6e4f5; overflow: hidden; font-family: system-ui, sans-serif; }
-      #app { position: fixed; inset: 0; }
-      #game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+      html, body { margin: 0; height: 100%; background: #070b14; color: #d6e4f5; overflow: hidden; font-family: system-ui, sans-serif;
+        overscroll-behavior: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+      /* Sin selección, zoom por doble toque ni gestos del navegador sobre el juego. */
+      html[data-input='touch'] body, html[data-input='touch'] #app { -webkit-user-select: none; user-select: none; touch-action: none; }
+      #app { position: fixed; inset: 0; height: 100dvh; }
+      #game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; touch-action: none; }
       #boot { position: fixed; inset: 0; display: grid; place-items: center; background: #070b14; z-index: 50; letter-spacing: .3em; font-size: 13px; text-transform: uppercase; color: #5fe0b7; }
       .boot-error { max-width: 480px; padding: 24px; text-align: center; letter-spacing: normal; text-transform: none; color: #d6e4f5; }
       .boot-error h1 { color: #ff4d4d; font-size: 20px; }

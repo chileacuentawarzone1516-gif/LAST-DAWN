@@ -22,6 +22,8 @@ export interface GameEvents {
   'ui:resumeRequested': Record<string, never>;
   'ui:restartRequested': Record<string, never>;
   'ui:titleRequested': Record<string, never>;
+  /** Botón de pausa táctil (en escritorio la pausa llega por pérdida de pointer lock). */
+  'ui:pauseRequested': Record<string, never>;
 
   // ── Entrada ──────────────────────────────────────────────────────────────
   /** Tecla 1-6 pulsada (flanco). Player usa 1/2 para armas salvo que la tienda esté abierta. */
@@ -92,6 +94,10 @@ export interface GameEvents {
   /** Aviso de hito: 'contamination' o 'seal' con los segundos restantes. */
   'match:warning': { kind: 'contamination' | 'seal'; secondsLeft: number };
   'zone:entered': { zone: ZoneId; threat: number };
+
+  // ── Perfil ───────────────────────────────────────────────────────────────
+  /** El operativo cambió de nombre, género o apariencia (ya validado, guardado y aplicado a state.profile). */
+  'profile:changed': { nameChanged: boolean; genderChanged: boolean; appearanceChanged: boolean };
 
   // ── UI ───────────────────────────────────────────────────────────────────
   'ui:notify': { text: string; kind: NotifyKind };

@@ -23,6 +23,9 @@ export interface QaApi {
   killAllEnemies(): void;
   /** Mantiene/suelta una acción de entrada (p. ej. 'interact'). */
   input(action: Action, down: boolean): void;
+  /** Joystick analógico (x derecha, y adelante, en [-1,1]) y mirada en px equivalentes de ratón. */
+  stick(x: number, y: number): void;
+  look(dx: number, dy: number): void;
   digit(n: number): void;
   complete(id: MissionId): void;
   stats(): unknown;
@@ -36,7 +39,7 @@ declare global {
 
 export function installQa(game: Game): QaApi {
   const { ctx } = game;
-  const input = ctx.input as unknown as { inject(a: Action, d: boolean): void };
+  const input = ctx.input;
   const qa: QaApi = {
     game,
     // structuredClone conserva NaN/Infinity (JSON los convertiría en null y los ocultaría).
@@ -56,6 +59,8 @@ export function installQa(game: Game): QaApi {
     spawnEnemy: (type, x, z) => ctx.enemies.spawn(type, x, z)?.id ?? null,
     killAllEnemies: () => ctx.enemies.killAll(),
     input: (a, d) => input.inject(a, d),
+    stick: (x, y) => input.setStick(x, y),
+    look: (dx, dy) => input.addLook(dx, dy),
     digit: (n) => ctx.bus.emit('input:digit', { n }),
     complete: (id) => ctx.missions.debugComplete(id),
     stats: () => ({ ...ctx.engine.stats, enemies: ctx.enemies.aliveCount }),

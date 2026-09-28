@@ -3,10 +3,12 @@ import type { EventScope } from '../core/events';
 import { createRunState, resetRunState } from '../core/state';
 import type { FlowState } from '../core/state';
 import type { GameContext, ModuleFactory } from '../core/context';
-import type { AudioApi, EnemiesApi, MissionsApi, PlayerApi, UiApi, WorldApi } from '../core/context';
+import type { AudioApi, CharacterApi, EnemiesApi, MissionsApi, PlayerApi, UiApi, WorldApi } from '../core/context';
 import type { System } from '../core/types';
 import { Input } from '../core/input';
 import { InteractionSystem } from '../core/interaction';
+import { isTouchDevice } from '../core/device';
+import { assignProfile, loadProfile } from '../core/profile';
 import { createEngine } from '../engine';
 import { createWorld } from '../world';
 import { createUi } from '../ui';
@@ -14,9 +16,13 @@ import { createAudio } from '../audio';
 import { createPlayer } from '../player';
 import { createEnemies } from '../enemies';
 import { createMissions } from '../missions';
+import { createCharacter } from '../character';
+import { createTouch } from '../touch';
 
 export interface ModuleFactories {
   world: ModuleFactory<WorldApi>;
+  character: ModuleFactory<CharacterApi>;
+  touch: ModuleFactory<System>;
   ui: ModuleFactory<UiApi>;
   audio: ModuleFactory<AudioApi>;
   player: ModuleFactory<PlayerApi>;
@@ -28,6 +34,8 @@ export interface GameOptions {
   canvas: HTMLCanvasElement;
   qa?: boolean;
   quality?: 'low' | 'medium' | 'high';
+  /** Fuerza (true/false) el modo táctil; por defecto se detecta (isTouchDevice). */
+  touch?: boolean;
   /** Sustituye factorías de módulo (páginas dev/ y tests). */
   modules?: Partial<ModuleFactories>;
 }
@@ -55,12 +63,14 @@ export class Game {
     const qa = opts.qa ?? false;
     const bus = new EventBus();
     const state = createRunState();
-    const input = new Input(opts.canvas, bus, qa);
+    assignProfile(state.profile, loadProfile());
+    const touch = opts.touch ?? isTouchDevice();
+    const input = new Input(opts.canvas, bus, qa, touch);
     const interactions = new InteractionSystem({ input, state });
     const engine = createEngine({ canvas: opts.canvas, bus, state, qa, quality: opts.quality });
 
     this.factories = {
-      world: createWorld, ui: createUi, audio: createAudio,
+      world: createWorld, character: createCharacter, touch: createTouch, ui: createUi, audio: createAudio,
       player: createPlayer, enemies: createEnemies, missions: createMissions,
       ...opts.modules,
     };
@@ -74,8 +84,10 @@ export class Game {
 
     const { ctx } = this;
     ctx.world = this.factories.world(ctx);
+    ctx.character = this.factories.character(ctx);
     ctx.ui = this.factories.ui(ctx);
     ctx.audio = this.factories.audio(ctx);
+    ctx.touch = input.touch ? this.factories.touch(ctx) : { update() {} };
     this.buildRun();
 
     this.scope = bus.scope();
@@ -84,6 +96,7 @@ export class Game {
       .on('ui:restartRequested', () => this.beginRun())
       .on('ui:resumeRequested', () => void this.resume())
       .on('ui:titleRequested', () => this.toTitle())
+      .on('ui:pauseRequested', () => this.pause())
       .on('input:lockChanged', ({ locked }) => this.onLockChanged(locked))
       .on('flow:ended', () => this.onEnded());
 
@@ -137,8 +150,10 @@ export class Game {
       case 'paused':
         break;
     }
+    ctx.character.update(dt);
     ctx.ui.update(dt);
     ctx.audio.update(dt);
+    ctx.touch.update(dt);
     ctx.engine.update(dt);
     ctx.input.endFrame();
   }
@@ -246,7 +261,7 @@ export class Game {
     this.scope.dispose();
     this.disposeRun();
     const { ctx } = this;
-    for (const s of [ctx.audio, ctx.ui, ctx.world, ctx.interactions, ctx.engine]) s.dispose?.();
+    for (const s of [ctx.touch, ctx.audio, ctx.ui, ctx.character, ctx.world, ctx.interactions, ctx.engine]) s.dispose?.();
     ctx.input.dispose();
     for (const c of this.cleanups) c();
   }
