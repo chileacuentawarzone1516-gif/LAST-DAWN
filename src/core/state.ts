@@ -96,9 +96,12 @@ export interface ExtractionMissionState {
   etaRemaining: number;
   /** Segundos restantes de la ventana de abordaje (fase landed/boarding). */
   boardRemaining: number;
+  /** 0..1 mientras se mantiene E para abordar. */
   boardProgress: number;
   boarded: boolean;
   paid: boolean;
+  /** Segundos restantes de despegue (fase departing). Añadido por misiones. */
+  departRemaining: number;
 }
 
 export interface MissionsState {
@@ -173,7 +176,7 @@ export function createRunState(): RunState {
     missions: {
       relay: { status: 'available', activated: false, progress: 0, insideCircle: false, paid: false },
       warden: { status: 'available', spawned: false, helmetBroken: false, killed: false, hpFraction: 1, helmetFraction: 1, engaged: false, paid: false },
-      extraction: { status: 'locked', phase: 'idle', etaRemaining: 0, boardRemaining: 0, boardProgress: 0, boarded: false, paid: false },
+      extraction: { status: 'locked', phase: 'idle', etaRemaining: 0, boardRemaining: 0, boardProgress: 0, boarded: false, paid: false, departRemaining: 0 },
     },
     ui: { modal: null, vendor: null },
   };

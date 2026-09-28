@@ -93,6 +93,8 @@ export const TIMERS = {
   sealS: 12 * 60,
   /** Pausa entre la muerte/derrota y la pantalla final (cámara cae). */
   endScreenDelayS: 1.8,
+  /** Pausa entre un final «no letal» (sellado, extracción, helicóptero perdido) y la pantalla final. */
+  endDelayS: 1.2,
   /** Avisos de tiempo (segundos restantes) antes de cada hito. */
   warnings: [60, 30, 10],
 } as const;
@@ -108,6 +110,8 @@ export const CONTAMINATION = {
   dpsMax: 14,
   /** El blindaje NO protege de la contaminación. */
   armorProtects: false,
+  /** El daño por contaminación se agrupa en golpes de al menos este intervalo (s). */
+  damageStepS: 0.25,
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,6 +149,19 @@ export const PLAYER = {
   mouseSensitivity: 0.0022,
   adsSensitivityMult: 0.55,
   interactReach: 3.2,
+  /** Multiplicador de velocidad de movimiento mientras se coloca una placa de armadura. */
+  plateMoveMult: 0.6,
+  /** Metros recorridos por paso (evento player:footstep) al andar / correr / agachado. */
+  strideWalk: 0.8,
+  strideSprint: 1.05,
+  strideCrouch: 0.58,
+  /** FOV extra (grados) al correr, para sensación de velocidad. */
+  sprintFovBoost: 4,
+  /** Tiempo de gracia (s) para saltar justo después de perder el suelo y de adelantar la pulsación. */
+  coyoteS: 0.08,
+  jumpBufferS: 0.12,
+  /** Segundos que tarda en caer la cámara al morir. */
+  deathFallS: 0.8,
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -240,6 +257,38 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   },
 };
 
+/** Manejo común de las armas (cadencia de cambio, dispersión por postura, retroceso…). */
+export const WEAPON_HANDLING = {
+  /** Alcance máximo de un disparo (m). */
+  maxRange: 250,
+  /** Cambio de arma: bajar la actual / subir la nueva (s). */
+  switchLowerS: 0.14,
+  switchRaiseS: 0.26,
+  /** Retardo (s) entre vaciar el cargador y empezar la recarga automática. */
+  autoReloadDelayS: 0.22,
+  /** Un disparo semiautomático pulsado hasta este tiempo antes de poder disparar se encola (s). */
+  fireBufferS: 0.12,
+  /** La dispersión por disparo no se recupera hasta pasado max(minDelay, fireInterval × mult). */
+  spreadRecoveryDelayMult: 1.4,
+  spreadRecoveryMinDelayS: 0.09,
+  /** La dispersión acumulada por disparo se reduce a esta fracción al apuntar. */
+  adsShotSpreadMult: 0.5,
+  /** Multiplicadores de dispersión por postura. */
+  spreadCrouchMult: 0.7,
+  spreadStillMult: 0.85,
+  /** Extra al moverse (1 + moveMult × velocidad normalizada). */
+  spreadMoveMult: 0.7,
+  spreadSprintMult: 1.5,
+  spreadAirMult: 2.0,
+  /** Retroceso de cámara: multiplicadores y recuperación. */
+  recoilAdsMult: 0.72,
+  recoilCrouchMult: 0.82,
+  recoilRecoverDelayS: 0.05,
+  recoilRecoverRate: 8,
+  recoilMaxPitch: 16,
+  recoilMaxYaw: 6,
+} as const;
+
 /** Arma inicial de cada ranura y munición inicial (cargadores completos en reserva). */
 export const STARTING_LOADOUT: { slot0: WeaponId; slot1: WeaponId; reserveMags: number } = {
   slot0: 'carbine',
@@ -264,6 +313,16 @@ export const GRENADE = {
   needsLineOfSight: true,
   cooldownS: 0.9,
   noise: 110,
+  /** Segundos desde pulsar G hasta soltar la granada, y hasta recuperar el arma. */
+  throwWindupS: 0.3,
+  throwRecoverS: 0.32,
+  /** Radio de colisión (m) y fracción de la velocidad del jugador que hereda al lanzar. */
+  collisionRadius: 0.07,
+  inheritVelocity: 0.5,
+  /** Por debajo de esta velocidad de impacto (m/s) el rebote no emite evento. */
+  bounceEventMinSpeed: 1.8,
+  /** Distancia (m) a la que la explosión aún sacude la cámara. */
+  shakeRadius: 32,
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -356,6 +415,30 @@ export const WARDEN = {
   aggroRange: 42,
   /** Inmune a aturdimiento salvo al romperse el casco. */
   helmetBreakStaggerS: 1.6,
+  // — Comportamiento (enemigos): combo, embestida, pisotón, furia, refuerzos —
+  /** Golpes por combo cuerpo a cuerpo, tiempo de preparación de cada uno y pausa entre golpes. */
+  comboHits: 2,
+  comboWindupS: 0.6,
+  comboGapS: 0.42,
+  /** Embestida: distancias mín./máx. al jugador para iniciarla, telegrafía, duración, daño y aturdimiento al estrellarse. */
+  chargeMinRange: 7,
+  chargeMaxRange: 26,
+  chargeTelegraphS: 1.0,
+  chargeDurationS: 1.4,
+  chargeDamage: 48,
+  chargeRecoverS: 1.2,
+  /** Pisotón: telegrafía y distancia al jugador a la que lo inicia. */
+  slamTelegraphS: 0.85,
+  slamTriggerRange: 5.2,
+  /** Multiplicador de velocidad al enfurecerse (casco roto). */
+  enrageSpeedMult: 1.15,
+  /** Rugido al invocar refuerzos (s) y mezcla de los invocados. */
+  summonRoarS: 1.3,
+  summonMix: { walker: 55, runner: 45 },
+  /** Un disparo del jugador a menos de esta distancia lo despierta. */
+  shotAlertRange: 60,
+  /** Si el jugador se aleja más de esto durante 8 s, abandona la persecución y vuelve a su puesto. */
+  leashRange: 115,
 } as const;
 
 /** Escalado por amenaza de zona (índice = threat). El 0 no se usa. */
@@ -397,6 +480,40 @@ export const DIRECTOR = {
   spawnGraceS: 8,
 } as const;
 
+/** Ajustes finos de IA, animación y rendimiento de los enemigos (sección de enemigos). */
+export const ENEMY_AI = {
+  /** Cono de visión total (grados) y radio de detección cercana (m; requiere línea de visión). */
+  sightConeDeg: 150,
+  senseRadius: 4.5,
+  /** Multiplicadores de la visión sobre un jugador agachado / corriendo. */
+  sightCrouchMult: 0.7,
+  sightSprintMult: 1.2,
+  /** Periodo del «cerebro» de cada infectado (s) y tope de consultas de línea de visión por frame. */
+  brainTickS: 0.15,
+  losPerFrame: 10,
+  /** Tiempo investigando un ruido antes de abandonar (s). */
+  investigateS: 8,
+  /** Radio en el que un infectado que detecta al jugador alerta a sus vecinos. */
+  alertShareRadius: 12,
+  /** Fracción del alcance de oído por debajo de la cual el disparo delata la posición exacta del jugador. */
+  hearingExactFrac: 0.35,
+  /** Velocidad de giro (rad/s) y fuerza de separación entre vecinos. */
+  turnRate: 7,
+  separationStrength: 1.5,
+  /** Campo de flujo hacia el jugador: refresco (s), desplazamiento que fuerza el refresco (m) y radio calculado (m). */
+  flow: { rebuildS: 0.35, moveThresholdM: 1.5, radiusM: 100 },
+  /** Nivel de detalle: animación completa < fullM, reducida < midM; no se dibuja a más de drawM. */
+  lod: { fullM: 30, midM: 62, drawM: 190 },
+  /** Cadáveres: tiempo tendidos (s), hundimiento final (s) y máximo simultáneo. */
+  corpse: { lifetimeS: 9, sinkS: 2.4, max: 20 },
+  /** Voces: separación de los gruñidos ociosos por individuo (s), global (s) y alcance (m). */
+  vocal: { idleGapS: [5, 11] as [number, number], globalGapS: 0.9, hearRangeM: 55 },
+  /** Escupidor: banda de distancia preferida, proyectil (m/s, gravedad), salpicadura (m) y tope de proyectiles. */
+  spitter: { minRange: 12, maxRange: 18, projectileSpeed: 17, gravity: 14, splashRadius: 1.6, maxProjectiles: 10, leadFactor: 0.55 },
+  /** Bruto: embestida (distancias, telegrafía, duración, multiplicador de velocidad y de daño, recarga, empuje al jugador, aturdimiento). */
+  brute: { chargeMinRange: 5, chargeMaxRange: 15, telegraphS: 0.8, durationS: 1.25, speedMult: 3.3, damageMult: 1.15, cooldownS: 7.5, knockback: 7, recoverS: 1.1 },
+} as const;
+
 export interface HordeDef {
   /** Segundos hasta la primera oleada tras iniciar. */
   firstWaveDelayS: number;
@@ -410,16 +527,18 @@ export interface HordeDef {
   mix: Partial<Record<Exclude<EnemyType, 'warden'>, number>>;
   /** Amenaza efectiva usada para escalar stats de esta horda. */
   threat: number;
+  /** Segundos de horda hasta alcanzar la intensidad máxima (relay = MISSIONS.relay.requiredS; extraction: ~hasta aterrizar). */
+  rampS: number;
 }
 
 export const HORDES: Record<'relay' | 'extraction', HordeDef> = {
   relay: {
     firstWaveDelayS: 3, spawnRingMin: 38, spawnRingMax: 62, waveIntervalS: [8, 4.2], waveSize: [4, 9],
-    maxAlive: 34, mix: { walker: 52, runner: 34, brute: 5, spitter: 9 }, threat: 3,
+    maxAlive: 34, mix: { walker: 52, runner: 34, brute: 5, spitter: 9 }, threat: 3, rampS: 55,
   },
   extraction: {
     firstWaveDelayS: 2, spawnRingMin: 36, spawnRingMax: 60, waveIntervalS: [7, 3.4], waveSize: [5, 12],
-    maxAlive: 40, mix: { walker: 40, runner: 32, brute: 14, spitter: 14 }, threat: 3,
+    maxAlive: 40, mix: { walker: 40, runner: 32, brute: 14, spitter: 14 }, threat: 3, rampS: 60,
   },
 };
 
@@ -456,6 +575,9 @@ export const MISSIONS = {
     boardWindowS: 45,
     boardHoldS: 2.5,
     departDurationS: 6,
+    /** Altura de crucero del helicóptero (m) y distancia de la que parte al llamarlo (m). */
+    heliAltitude: 60,
+    heliStartDistance: 520,
   },
 } as const;
 
@@ -593,3 +715,60 @@ export const AUDIO = {
 
 /** Claves comprobadas por los tests: todos los pesos y precios deben ser válidos. */
 export const ZONE_IDS: readonly ZoneId[] = ['perimeter', 'warehouses', 'refinery', 'complex'];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HUD / INTERFAZ (sección del módulo ui)
+// ─────────────────────────────────────────────────────────────────────────────
+export const HUD = {
+  /** Clave de localStorage donde se recuerdan volumen, silencio y calidad. */
+  storageKey: 'deadsignal.settings.v1',
+  /** Notificaciones apiladas: máximo simultáneo y duración (s). */
+  notify: { max: 4, durationS: 4 },
+  /** Punto de mira: hueco base y ampliación por unidad de dispersión (en "unidades de interfaz"). */
+  crosshair: { baseGap: 4, gapPerSpread: 22, hideAimingWith: ['dmr'] as readonly WeaponId[] },
+  /** Marcadores de impacto: duración normal y al matar (s). */
+  hit: { durationS: 0.3, killDurationS: 0.55 },
+  /** Indicadores direccionales de daño: vida (s), máximo simultáneo y ángulo de fusión (grados). */
+  damage: { lifeS: 1.6, max: 6, mergeDeg: 14 },
+  /** Brújula: semicampo visible (grados) y separación de marcas (grados). */
+  compass: { halfFovDeg: 90, tickDeg: 15 },
+  /** Banner de zona: duración total (s). */
+  zoneBannerS: 3.4,
+  /** Munición baja (fracción del cargador) y vida baja (fracción). */
+  lowAmmoFraction: 0.25,
+  lowHpFraction: 0.3,
+  /** Tiempo (ms) tras mostrarse la pantalla final durante el que se ignoran los clics (evita reinicios accidentales). */
+  endGuardMs: 700,
+  /** Espera (ms) tras «Continuar» antes de pedir «Haz clic para continuar». */
+  resumeHintMs: 650,
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MUNDO (sección del módulo world: layout procedural, colisión, navegación, render)
+// ─────────────────────────────────────────────────────────────────────────────
+export const WORLD = {
+  /** Semilla fija: el distrito es idéntico en cada partida. */
+  seed: 0xdead516,
+  /** Muro perimetral del distrito: cara interior a `bounds ∓ wallThickness`. */
+  wallThickness: 3,
+  wallHeight: 6.5,
+  /** Celda del hash espacial de colisiones (m). */
+  hashCell: 8,
+  /** Celda del ráster de suelo (material + superficie), m. */
+  groundCell: 2,
+  /** Malla de navegación: radio del agente y rango vertical que bloquea el paso. */
+  nav: { agentRadius: 0.6, blockMinY: 0.45, blockMaxY: 1.8 },
+  /** Objetivos de puntos de aparición y botín por zona (mínimos garantizados). */
+  spawnPointsPerZone: 60,
+  lootSpotsPerZone: 30,
+  /** Distancia mínima entre un punto de aparición y el jugador al inicio (m). */
+  spawnMinPlayerDist: 25,
+  /** Radio libre de colisionadores alrededor de cada punto clave (m). */
+  poiClearRadius: 3.2,
+  /** Tamaño (m) de los lotes de geometría estática fusionada (frustum culling por lote). */
+  chunkSize: 100,
+  /** Luces puntuales estáticas sin sombra en puntos críticos (0 = sólo emisivo). */
+  pointLights: true,
+  /** Presupuestos que vigila el test de rendimiento del mundo. */
+  budget: { drawCalls: 300, triangles: 600_000, buildMs: 1500 },
+} as const;
