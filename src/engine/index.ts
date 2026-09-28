@@ -21,6 +21,8 @@ export interface EngineOptions {
   state: RunState;
   qa: boolean;
   quality?: QualityLevel;
+  /** Dispositivo táctil (móvil/tablet): el motor puede ajustar resolución, MSAA y texturas. */
+  touch?: boolean;
 }
 
 /** Extras opcionales del motor (herramientas de dev y QA); `EngineApi` no cambia. */

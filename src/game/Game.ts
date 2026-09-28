@@ -67,7 +67,7 @@ export class Game {
     const touch = opts.touch ?? isTouchDevice();
     const input = new Input(opts.canvas, bus, qa, touch);
     const interactions = new InteractionSystem({ input, state });
-    const engine = createEngine({ canvas: opts.canvas, bus, state, qa, quality: opts.quality });
+    const engine = createEngine({ canvas: opts.canvas, bus, state, qa, quality: opts.quality, touch });
 
     this.factories = {
       world: createWorld, character: createCharacter, touch: createTouch, ui: createUi, audio: createAudio,
