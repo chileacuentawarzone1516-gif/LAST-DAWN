@@ -249,7 +249,7 @@ export class LayoutKit {
   }
 
   // ── POIs ───────────────────────────────────────────────────────────────────
-  poi(id: string, x: number, z: number, clear = WORLD.poiClearRadius): void {
+  poi(id: string, x: number, z: number, clear: number = WORLD.poiClearRadius): void {
     this.pois.push({ id, x, z, clear });
     this.markDisc(x, z, clear + 0.5, OCC.keep);
   }

@@ -390,11 +390,18 @@ export async function openGame(browser, baseUrl, { path = '/?qa=1', freeze = tru
   const initScripts = [{ fn: rafGateScript }];
   if (seed !== null) initScripts.push({ fn: seedScript, arg: seed });
   const { page, context, problems } = await openPage(browser, baseUrl + path, { initScripts });
-  try {
-    await withTimeout(page.waitForFunction(() => !!window.__qa, null, { timeout: timeoutMs, polling: 100 }), timeoutMs + 3000, 'esperar window.__qa');
-  } catch (err) {
+  // Espera a window.__qa; si la página ya lanzó un error de arranque, falla rápido (no espera al timeout).
+  const t0 = Date.now();
+  let ready = false;
+  while (Date.now() - t0 < timeoutMs) {
+    ready = await page.evaluate(() => !!window.__qa).catch(() => false);
+    if (ready) break;
+    if ((problems.pageErrors.length || problems.errors.length) && Date.now() - t0 > 1500) break;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  if (!ready) {
     const detail = [...problems.pageErrors, ...problems.errors].slice(0, 3).join(' | ');
-    throw new Error(`window.__qa no apareció en ${timeoutMs} ms (${err instanceof Error ? err.message : err})${detail ? `; errores: ${detail}` : ''}`);
+    throw new Error(`window.__qa no apareció (${Math.round((Date.now() - t0) / 1000)} s)${detail ? `; errores de arranque: ${detail}` : ''}`);
   }
   const bot = new Bot(page, { timeoutMs: botTimeoutMs });
   if (probe) await bot.ev(installBot, readEventNames(), 'installBot');

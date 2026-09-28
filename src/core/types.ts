@@ -46,4 +46,6 @@ export type MaterialKey =
   // armas y personajes
   | 'gunMetal' | 'gunPolymer' | 'gunWood' | 'brass'
   | 'skinPale' | 'skinGrey' | 'skinGreen' | 'clothDark' | 'clothOlive' | 'clothRag' | 'bone' | 'blood'
-  | 'armorPlate' | 'wardenArmor' | 'wardenHelmet' | 'helicopterBody';
+  | 'armorPlate' | 'wardenArmor' | 'wardenHelmet' | 'helicopterBody'
+  // añadidos por el motor
+  | 'grass' | 'water' | 'roofing';

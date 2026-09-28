@@ -1,46 +1,153 @@
 import * as THREE from 'three';
 import type { MaterialsApi } from '../core/context';
 import type { MaterialKey } from '../core/types';
+import { RECIPES, bake, flipRows, heightToNormal, packOrm } from './textures';
+
+export interface MaterialsConfig {
+  /** Texturas baratas: 128 px, sin mapas de normales ni de rugosidad. */
+  lowTextures: boolean;
+  anisotropy: number;
+  /** Con MSAA disponible la valla usa alpha-to-coverage (velo a distancia) en vez de alphaTest duro. */
+  alphaToCoverage: boolean;
+}
+
+export interface Materials extends MaterialsApi {
+  configure(cfg: Partial<MaterialsConfig>): void;
+  /** Tiempo acumulado (ms) generando texturas. */
+  readonly generationMs: number;
+  dispose(): void;
+}
+
+interface Entry {
+  material: THREE.MeshStandardMaterial;
+  textures: THREE.Texture[];
+}
 
 /**
- * BASE PROVISIONAL (colores planos). El agente de motor/render lo sustituye por
- * texturas procedurales manteniendo la API: get(key) y tile(key).
+ * Materiales compartidos con texturas procedurales generadas de forma PEREZOSA por clave.
+ * `get(key)` devuelve siempre el mismo material (no clonar); al cambiar de calidad se
+ * regeneran sus texturas in-place para que las referencias existentes sigan siendo válidas.
  */
-const COLORS: Record<MaterialKey, number> = {
-  asphalt: 0x2a2d33, asphaltWorn: 0x34373d, roadLine: 0xc9c27a, concrete: 0x777c84, concreteDark: 0x50555c, concreteStained: 0x62676d,
-  dirt: 0x4a3f33, gravel: 0x5a5a58, tile: 0x8a9096, brick: 0x6b3f34, plaster: 0x9a968c, metalPanel: 0x59626c, corrugated: 0x6a7480,
-  rustMetal: 0x74432c, steelDark: 0x2c3138, labWall: 0xc8d2da, labFloor: 0x9fb0bb, glass: 0x5a86a0, wood: 0x6b4b2e, fence: 0x3b4148,
-  hazard: 0xd9b400, pipe: 0x4b545e, rubber: 0x141414, containerRed: 0x8e2b25, containerBlue: 0x23509a, containerGreen: 0x2f6b3f,
-  containerYellow: 0xb8931f, containerGrey: 0x606870, emissiveRed: 0xff2a2a, emissiveBlue: 0x3f8cff, emissiveAmber: 0xffb020,
-  emissiveGreen: 0x3dff9c, emissiveWhite: 0xffffff, toxic: 0x7dff3a, gunMetal: 0x2b2f35, gunPolymer: 0x1c1f23, gunWood: 0x5b3d24,
-  brass: 0xb08d3a, skinPale: 0xa9b3a0, skinGrey: 0x8a9488, skinGreen: 0x7d9a70, clothDark: 0x23272e, clothOlive: 0x3a4230,
-  clothRag: 0x4b463d, bone: 0xd8d2bd, blood: 0x6a0d0d, armorPlate: 0x3d4650, wardenArmor: 0x2f363f, wardenHelmet: 0x556270,
-  helicopterBody: 0x3a4a3d,
-};
+export function createMaterials(): Materials {
+  const cache = new Map<MaterialKey, Entry>();
+  const cfg: MaterialsConfig = { lowTextures: false, anisotropy: 4, alphaToCoverage: true };
+  let ms = 0;
 
-const EMISSIVE = new Set<MaterialKey>(['emissiveRed', 'emissiveBlue', 'emissiveAmber', 'emissiveGreen', 'emissiveWhite', 'toxic']);
+  const dataTex = (data: Uint8Array, size: number, srgb: boolean, aniso: boolean): THREE.DataTexture => {
+    const t = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    t.wrapS = THREE.RepeatWrapping;
+    t.wrapT = THREE.RepeatWrapping;
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true;
+    t.anisotropy = aniso ? cfg.anisotropy : 1;
+    t.needsUpdate = true;
+    return t;
+  };
 
-export function createMaterials(): MaterialsApi {
-  const cache = new Map<MaterialKey, THREE.Material>();
+  const build = (key: MaterialKey, e: Entry): void => {
+    const t0 = performance.now();
+    const r = RECIPES[key];
+    const low = cfg.lowTextures;
+    const size = low ? 128 : 256;
+    for (const t of e.textures) t.dispose();
+    e.textures = [];
+    const surf = bake(r, size, !low);
+    const m = e.material;
+    const map = dataTex(flipRows(surf.albedo, size), size, true, true);
+    e.textures.push(map);
+    m.color.set(r.tint ?? 0xffffff);
+    if (r.emissive) {
+      m.emissive.set(r.emissive.color);
+      m.emissiveIntensity = r.emissive.intensity;
+      m.emissiveMap = map;
+      m.map = null;
+    } else {
+      m.map = map;
+    }
+    m.normalMap = null;
+    m.roughnessMap = null;
+    m.metalnessMap = null;
+    if (surf.height && r.normal) {
+      const n = dataTex(heightToNormal(surf.height, size, r.normal), size, false, true);
+      e.textures.push(n);
+      m.normalMap = n;
+      m.normalScale.set(1, 1);
+    }
+    if (surf.rough) {
+      const orm = packOrm(surf.rough, surf.metal, size);
+      const t = dataTex(orm.data, orm.size, false, false);
+      e.textures.push(t);
+      m.roughnessMap = t;
+      m.roughness = 1;
+      if (surf.metal) {
+        m.metalnessMap = t;
+        m.metalness = 1;
+      } else {
+        m.metalness = 0;
+      }
+    } else {
+      m.roughness = r.ro;
+      m.metalness = r.me;
+    }
+    if (r.alpha === 'blend') {
+      m.transparent = true;
+      m.depthWrite = false;
+    } else if (r.alpha === 'test') {
+      m.side = THREE.DoubleSide;
+    }
+    applyAlpha(m, r.alpha);
+    m.needsUpdate = true;
+    ms += performance.now() - t0;
+  };
+
+  const applyAlpha = (m: THREE.MeshStandardMaterial, mode: 'blend' | 'test' | undefined): void => {
+    if (mode !== 'test') return;
+    if (cfg.alphaToCoverage) {
+      m.alphaToCoverage = true;
+      m.alphaTest = 0;
+    } else {
+      m.alphaToCoverage = false;
+      m.alphaTest = 0.4;
+    }
+  };
+
   return {
     get(key) {
-      let m = cache.get(key);
-      if (!m) {
-        const emissive = EMISSIVE.has(key);
-        m = new THREE.MeshStandardMaterial({
-          color: COLORS[key],
-          roughness: 0.85,
-          metalness: key.startsWith('gun') || key === 'metalPanel' ? 0.6 : 0.05,
-          emissive: emissive ? COLORS[key] : 0x000000,
-          emissiveIntensity: emissive ? 1.6 : 0,
-          transparent: key === 'glass',
-          opacity: key === 'glass' ? 0.5 : 1,
-        });
+      let e = cache.get(key);
+      if (!e) {
+        const m = new THREE.MeshStandardMaterial();
         m.name = key;
-        cache.set(key, m);
+        e = { material: m, textures: [] };
+        cache.set(key, e);
+        build(key, e);
       }
-      return m;
+      return e.material;
     },
-    tile: () => 4,
+    tile: (key) => RECIPES[key].tile,
+    configure(next) {
+      const rebuild = (next.lowTextures !== undefined && next.lowTextures !== cfg.lowTextures)
+        || (next.anisotropy !== undefined && next.anisotropy !== cfg.anisotropy);
+      const alphaChanged = next.alphaToCoverage !== undefined && next.alphaToCoverage !== cfg.alphaToCoverage;
+      Object.assign(cfg, next);
+      if (rebuild) for (const [k, e] of cache) build(k, e);
+      else if (alphaChanged) {
+        for (const [k, e] of cache) {
+          applyAlpha(e.material, RECIPES[k].alpha);
+          e.material.needsUpdate = true;
+        }
+      }
+    },
+    get generationMs() {
+      return ms;
+    },
+    dispose() {
+      for (const e of cache.values()) {
+        for (const t of e.textures) t.dispose();
+        e.material.dispose();
+      }
+      cache.clear();
+    },
   };
 }
