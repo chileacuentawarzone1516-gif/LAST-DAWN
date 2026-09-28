@@ -3,8 +3,10 @@ import { PLAYER, SHOP } from '../src/config';
 import { createRunState } from '../src/core/state';
 import {
   END_REASON_DETAIL, END_REASON_TEXT, endReasonText, formatAccuracy, formatDelta, formatMoney, resultFor,
-  shopItemStatus, summarizeRun,
+  pickActiveObjective, shopItemStatus, summarizeRun,
 } from '../src/ui/format';
+import { formatObjective } from '../src/rules/markers';
+import { TOUCH_GUIDE } from '../src/ui/content';
 
 describe('formatMoney / formatDelta', () => {
   it('agrupa miles con punto', () => {
@@ -141,5 +143,39 @@ describe('shopItemStatus', () => {
     p.money = 0;
     p.hp = p.maxHp;
     expect(shopItemStatus(item('cage', 'medkit'), p)).toBe('full');
+  });
+});
+
+describe('pickActiveObjective (rastreador plegado)', () => {
+  it('estado inicial: el primer contrato pendiente', () => {
+    const st = createRunState();
+    expect(pickActiveObjective(formatObjective(st))?.id).toBe('relay');
+  });
+  it('un contrato activo tiene prioridad sobre los pendientes', () => {
+    const st = createRunState();
+    st.missions.warden.status = 'active';
+    expect(pickActiveObjective(formatObjective(st))?.id).toBe('warden');
+  });
+  it('salta los completados y, con todos hechos, devuelve null', () => {
+    const st = createRunState();
+    st.missions.relay.status = 'completed';
+    st.missions.warden.status = 'active';
+    expect(pickActiveObjective(formatObjective(st))?.id).toBe('warden');
+    st.missions.warden.status = 'completed';
+    st.missions.extraction.status = 'available';
+    expect(pickActiveObjective(formatObjective(st))?.id).toBe('extraction');
+    st.missions.extraction.status = 'completed';
+    expect(pickActiveObjective(formatObjective(st))).toBeNull();
+  });
+  it('lista vacía → null', () => {
+    expect(pickActiveObjective([])).toBeNull();
+  });
+});
+
+describe('guía táctil', () => {
+  it('tiene entradas únicas con texto en español', () => {
+    expect(TOUCH_GUIDE.length).toBeGreaterThanOrEqual(5);
+    expect(new Set(TOUCH_GUIDE.map((g) => g.title)).size).toBe(TOUCH_GUIDE.length);
+    for (const g of TOUCH_GUIDE) expect(g.text.length).toBeGreaterThan(20);
   });
 });

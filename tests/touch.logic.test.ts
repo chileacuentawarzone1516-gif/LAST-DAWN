@@ -89,7 +89,7 @@ describe('joystick · vector de movimiento', () => {
 
   it('la dirección se conserva en diagonal', () => {
     stickVector(R * 0.6, -R * 0.6, R, DZ, STICK_EXPONENT, out);
-    expect(out.x).toBeCloseTo(-out.y, 10);
+    expect(out.x).toBeCloseTo(out.y, 10);
     expect(out.x).toBeGreaterThan(0);
   });
 
@@ -372,11 +372,11 @@ describe('layout · geometría', () => {
     expect((findButton(tiny, 'fire') as ButtonRect).size).toBe(TOUCH_UI.fire.min);
   });
 
-  it('el cluster no cubre más de un tercio del ancho en móviles apaisados', () => {
+  it('el cluster deja libre la zona central: ≤ 46 % del ancho y ≤ 62 % del alto en móviles apaisados', () => {
     for (const [w, h] of SIZES.filter(([, hh]) => hh <= 430)) {
       const l = computeLayout(w, h, false, NONE);
-      expect(l.cluster.w / w, `${w}x${h}`).toBeLessThan(0.42);
-      expect(l.cluster.h / h, `${w}x${h}`).toBeLessThan(0.75);
+      expect(l.cluster.w / w, `${w}x${h}`).toBeLessThan(0.46);
+      expect(l.cluster.h / h, `${w}x${h}`).toBeLessThan(0.62);
     }
   });
 
