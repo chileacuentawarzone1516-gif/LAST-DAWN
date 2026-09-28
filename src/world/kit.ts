@@ -340,6 +340,10 @@ export class LayoutKit {
       this.mark(r, OCC.prop);
     }
     this.props.push({ type, x, y: o.y ?? 0, z, rot, sx, sy, sz, variant: o.variant ?? 0 });
+    if (spec.loot && (o.y ?? 0) < 0.5 && this.rng() < 0.32) {
+      const a = this.rng() * Math.PI * 2;
+      this.loot(x + Math.cos(a) * (ext + 1.4), z + Math.sin(a) * (ext + 1.4));
+    }
     return true;
   }
 
