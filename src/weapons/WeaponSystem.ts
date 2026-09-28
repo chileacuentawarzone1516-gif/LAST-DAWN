@@ -20,10 +20,6 @@ import type { WeaponHost } from './host';
 import { GrenadeSystem } from './Grenades';
 import { ViewModel, createViewFrame } from './ViewModel';
 
-const IMPACT_FX: Record<SurfaceKind, 'sparks' | 'dust'> = {
-  concrete: 'dust', metal: 'sparks', dirt: 'dust', asphalt: 'dust', flesh: 'dust', glass: 'sparks', wood: 'dust', water: 'dust',
-};
-
 export class WeaponSystem {
   readonly viewmodel: ViewModel;
   readonly grenades: GrenadeSystem;
@@ -228,7 +224,8 @@ export class WeaponSystem {
     }
     this.time += dt;
     const input = ctx.input;
-    const shopOpen = ctx.state.ui.modal === 'shop';
+    // Tienda o mapa abiertos: sin combate (las teclas 1-6 son de la tienda; el mapa cubre la vista).
+    const shopOpen = ctx.state.ui.modal !== null;
     const active = ctl.alive && ctl.controlEnabled && ctx.state.flow === 'playing' && dt > 0;
     this.syncLoadout(false);
     const slot = this.slot();
@@ -447,7 +444,7 @@ export class WeaponSystem {
       this.dir.x = dx;
       this.dir.y = dy;
       this.dir.z = dz;
-      const kind = this.tracePellet(def, i);
+      const kind = this.tracePellet(def);
       if (kind === 2) anyEnemy = true;
       if (kind > best || i === 0) {
         if (kind >= best) {
@@ -457,12 +454,7 @@ export class WeaponSystem {
           mp.end.z = this.endPt.z;
         }
       }
-      if (i < (def.pellets > 1 ? 2 : 1)) {
-        const dxm = this.endPt.x - this.muzzle.x;
-        const dym = this.endPt.y - this.muzzle.y;
-        const dzm = this.endPt.z - this.muzzle.z;
-        if (dxm * dxm + dym * dym + dzm * dzm > 36) ctx.fx.tracer(this.muzzle, this.endPt);
-      }
+      // El trazador lo dibuja el motor al recibir 'player:shot'.
     }
     // dirección central para el evento
     this.dir.x = f.x;
@@ -489,7 +481,7 @@ export class WeaponSystem {
   }
 
   /** Traza un perdigón (this.dir desde this.origin). Devuelve 0 nada, 1 mundo, 2 enemigo. */
-  private tracePellet(def: WeaponDef, index: number): number {
+  private tracePellet(def: WeaponDef): number {
     const { ctx } = this;
     const maxR = WEAPON_HANDLING.maxRange;
     const o = this.origin;
@@ -526,8 +518,7 @@ export class WeaponSystem {
       this.hitNormal.z = wall.normal.z;
       this.impactPayload.surface = wall.surface;
       ctx.bus.emit('bullet:impact', this.impactPayload);
-      if (index < 3) ctx.fx.burst(IMPACT_FX[wall.surface], this.hitPoint, this.hitNormal, def.pellets > 1 ? 0.6 : 1);
-      ctx.fx.decal('bullet', this.hitPoint, this.hitNormal, 0.12);
+      // Chispas, polvo y decal los dibuja el motor al recibir 'bullet:impact'.
       return 1;
     }
     this.endPt.x = o.x + d.x * maxR;

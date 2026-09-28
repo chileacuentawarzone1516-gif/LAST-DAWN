@@ -248,6 +248,9 @@
 .seg-label:last-child { border-right: 0; }
 .seg-input:checked + .seg-label { background: rgba(95, 224, 183, 0.18); color: var(--c-accent); }
 .seg-input:focus-visible + .seg-label { outline: 2px solid var(--c-accent); outline-offset: -2px; }
+.set-fieldset { display: block; }
+.set-fieldset .set-label { float: left; width: 100%; margin-bottom: 0.5em; }
+.set-fieldset .seg { clear: both; }
 .set-note { margin: 0; font-size: 0.74em; color: var(--c-dim); }
 
 /* ───── Pantallas ───── */
@@ -261,8 +264,8 @@
 .title-eyebrow { font-size: 0.72em; letter-spacing: 0.22em; color: var(--c-dim); text-transform: uppercase; }
 .title-glyph { width: 4.2em; color: var(--c-accent); }
 .title-name { margin: 0; display: grid; gap: 0.1em; font-family: var(--cond); line-height: 0.95; }
-.title-main { font-size: 3.5em; font-weight: 800; letter-spacing: 0.03em; white-space: nowrap; }
-.title-sub { font-size: 1.35em; font-weight: 600; letter-spacing: 0.32em; color: var(--c-accent); white-space: nowrap; }
+.title-main { font-size: min(3.5em, 4.3vw); font-weight: 800; letter-spacing: 0.02em; white-space: nowrap; }
+.title-sub { font-size: min(1.35em, 2.5vw); font-weight: 600; letter-spacing: 0.28em; color: var(--c-accent); white-space: nowrap; }
 .title-slogan { margin: 0; font-size: 1.1em; color: var(--c-text); }
 .title-cta { display: grid; gap: 0.7em; justify-items: start; margin-top: 0.6em; }
 .title-cta .btn { font-size: 1.15em; padding: 0.85em 1.8em; }
@@ -357,7 +360,6 @@
 /* ───── Adaptación ───── */
 @media (max-width: 1000px), (max-height: 560px) {
   .title-wrap { gap: 1.6em; padding: 1.2em 1em; }
-  .title-main { font-size: 3em; }
   .title-side { height: min(26em, 74vh); }
 }
 @media (max-width: 760px) {

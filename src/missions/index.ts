@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { CONTAMINATION, LOOT, MAP, MISSIONS, PLAYER, TIMERS } from '../config';
 import type { GameContext, MissionsApi } from '../core/context';
-import type { Vec3, MissionId } from '../core/types';
+import type { MissionId } from '../core/types';
 import { createRng } from '../core/util';
 import { killReward, addMoney } from '../rules/economy';
 import { rollDrop } from '../rules/loot';
@@ -51,7 +51,6 @@ export function createMissions(ctx: GameContext): MissionsApi {
 
   const relayCenter = makeVec3(MAP.relay.x, 0, MAP.relay.z);
   const radioPos = makeVec3(MAP.lz.radio.x, 0, MAP.lz.radio.z);
-  const dustPos: Vec3 = makeVec3(MAP.lz.center.x, 0.2, MAP.lz.center.z);
 
   // ── Contratos ────────────────────────────────────────────────────────────
   function updated(id: MissionId): void {
@@ -100,7 +99,6 @@ export function createMissions(ctx: GameContext): MissionsApi {
     switch (ev.type) {
       case 'landed':
         bus.emit('extraction:landed', {});
-        ctx.fx.burst('heliDust', dustPos, undefined, 3);
         updated('extraction');
         notify(ctx, `¡Helicóptero en tierra! Mantén E cerca para abordar (${MISSIONS.extraction.boardWindowS} s)`, 'warn');
         break;

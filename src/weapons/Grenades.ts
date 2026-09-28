@@ -34,7 +34,6 @@ export class GrenadeSystem {
   private readonly n = new THREE.Vector3();
   private readonly seg: Vec3 = { x: 0, y: 0, z: 0 };
   private readonly boom: Vec3 = { x: 0, y: 0, z: 0 };
-  private readonly up: Vec3 = { x: 0, y: 1, z: 0 };
   private readonly probe: Vec3 = { x: 0, y: 0, z: 0 };
   private readonly bouncePayload = { pos: { x: 0, y: 0, z: 0 } };
   private readonly exPayload = { pos: this.boom, radius: GRENADE.radius };
@@ -161,15 +160,9 @@ export class GrenadeSystem {
     b.z = it.p.z;
     ctx.bus.emit('grenade:exploded', this.exPayload);
     ctx.enemies.explode(b, GRENADE.radius, GRENADE.damage, GRENADE.minMult);
-    ctx.fx.burst('explosion', b, this.up, 1);
-    ctx.fx.burst('smoke', b, this.up, 1);
-    ctx.fx.burst('dust', b, this.up, 1);
-    ctx.fx.flash(b, 0xffa040, 8, 0.3, 30);
     this.probe.x = b.x;
     this.probe.y = b.y;
     this.probe.z = b.z;
-    const ground = ctx.world.raycast(this.probe, DOWN, 1.5);
-    if (ground) ctx.fx.decal('scorch', ground.point, ground.normal, 3);
     // Daño al jugador: distancia al torso, con línea de visión
     const st = ctx.state.player;
     if (st.alive) {
