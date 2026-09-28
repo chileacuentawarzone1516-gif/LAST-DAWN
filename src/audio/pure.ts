@@ -292,9 +292,12 @@ export class VoiceLimiter {
   prune(now: number): number[] {
     const gone: number[] = [];
     const keep: LimVoice[] = [];
-    for (const v of this.voices) (v.end <= now ? gone : keep).push(v);
+    for (const v of this.voices) {
+      if (v.end <= now) gone.push(v.id);
+      else keep.push(v);
+    }
     this.voices = keep;
-    return gone.map((v) => v.id);
+    return gone;
   }
 
   count(category?: string): number {

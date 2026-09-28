@@ -217,12 +217,12 @@ const wardenIdle: Recipe = (ac, dest, t0, p) => {
 const wardenAlert = vocalRecipe({
   dur: [1.2, 1.6], peak: 0.6, f0: [[45, 55], [75, 95], [55, 65]], vowels: [glide(V.metal, V.o), glide(V.o, V.metal)],
   q: [5, 9], vib: { rate: [3, 5], depth: [0.02, 0.04] }, rasp: { rate: [30, 45], depth: [0.6, 0.75] }, fm: { ratio: [0.5, 1], index: [0.2, 0.5] }, breath: [0.2, 0.35], sat: 0.55, env: BURST_ENV,
-  extra: (ac, dest, t0, r, dur) => servo(ac, dest, t0, { f0: 120, f1: 320, dur: dur * 0.8, peak: 0.07 }),
+  extra: (ac, dest, t0, _r, dur) => servo(ac, dest, t0, { f0: 120, f1: 320, dur: dur * 0.8, peak: 0.07 }),
 });
 const wardenAttack = vocalRecipe({
   dur: [0.5, 0.7], peak: 0.55, f0: [[80, 95], [55, 65]], vowels: [glide(V.o, V.metal)],
   q: [5, 8], rasp: { rate: [26, 36], depth: [0.6, 0.75] }, breath: [0.2, 0.3], sat: 0.5, env: BURST_ENV,
-  extra: (ac, dest, t0, r) => servo(ac, dest, t0, { f0: 200, f1: 420, dur: 0.3, peak: 0.08 }),
+  extra: (ac, dest, t0) => servo(ac, dest, t0, { f0: 200, f1: 420, dur: 0.3, peak: 0.08 }),
 });
 const wardenHurt = vocalRecipe({
   dur: [0.3, 0.4], peak: 0.5, f0: [[70, 85], [50, 60]], vowels: [glide(V.metal, V.o)],

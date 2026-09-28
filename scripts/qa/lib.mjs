@@ -8,10 +8,12 @@ import { chromium } from 'playwright-core';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { inflateSync } from 'node:zlib';
 
-export const ROOT = resolve(new URL('../..', import.meta.url).pathname);
+export const ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
+const IS_WIN = process.platform === 'win32';
 export const OUT_DIR = join(ROOT, 'qa-output');
 /** Puerto de desarrollo del agente de QA (los demás agentes usan el suyo). */
 export const DEFAULT_PORT = 5208;
@@ -116,11 +118,15 @@ export function withTimeout(promise, ms, label = 'operación') {
 // ─────────────────────────────────────────────────────────────────────────────
 // Chromium
 // ─────────────────────────────────────────────────────────────────────────────
-/** Localiza el ejecutable de Chromium (env CHROME_PATH > playwright > sistema). */
+/**
+ * Localiza el ejecutable de Chromium/Chrome/Edge (env CHROME_PATH > playwright > rutas típicas de
+ * Linux, macOS y Windows).
+ */
 export function findChrome() {
   if (process.env.CHROME_PATH && existsSync(process.env.CHROME_PATH)) return process.env.CHROME_PATH;
+  const candidates = [];
   const base = process.env.PLAYWRIGHT_BROWSERS_PATH ?? '/opt/pw-browsers';
-  const candidates = [join(base, 'chromium', 'chrome-linux', 'chrome')];
+  candidates.push(join(base, 'chromium', 'chrome-linux', 'chrome'));
   if (existsSync(base)) {
     for (const d of readdirSync(base)) {
       if (d.startsWith('chromium')) {
@@ -129,7 +135,22 @@ export function findChrome() {
       }
     }
   }
-  candidates.push('/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome');
+  candidates.push('/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable');
+  // macOS
+  candidates.push(
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+  );
+  // Windows
+  const roots = [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA].filter(Boolean);
+  for (const r of roots) {
+    candidates.push(
+      join(r, 'Google', 'Chrome', 'Application', 'chrome.exe'),
+      join(r, 'Chromium', 'Application', 'chrome.exe'),
+      join(r, 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+    );
+  }
   return candidates.find((p) => existsSync(p));
 }
 
@@ -149,7 +170,7 @@ const NO_GL_ARGS = ['--disable-gpu', '--disable-webgl', '--disable-3d-apis', '--
  */
 export async function launchBrowser({ headless = true, noGL = false, args = [] } = {}) {
   const executablePath = findChrome();
-  if (!executablePath) throw new Error('No se encontró Chromium. Define CHROME_PATH o instala uno en /opt/pw-browsers.');
+  if (!executablePath) throw new Error('No se encontró Chromium. Define CHROME_PATH (Chrome/Chromium/Edge).');
   const browser = await chromium.launch({
     executablePath,
     headless,
@@ -222,7 +243,7 @@ export function ensureOutDir(sub = '') {
 function viteCommand(extra) {
   const bin = join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js');
   if (existsSync(bin)) return { cmd: process.execPath, args: [bin, ...extra] };
-  return { cmd: 'pnpm', args: ['exec', 'vite', ...extra] };
+  return { cmd: IS_WIN ? 'pnpm.cmd' : 'pnpm', args: ['exec', 'vite', ...extra], shell: IS_WIN };
 }
 
 /** ¿Responde un servidor vite en modo dev? (sirve /@vite/client). */
@@ -258,14 +279,16 @@ export async function startServer({ mode = 'dev', port = DEFAULT_PORT, outDir, s
   const extra = mode === 'preview'
     ? ['preview', ...common, ...(outDir ? ['--outDir', outDir] : [])]
     : [...common];
-  const { cmd, args } = viteCommand(extra);
-  const child = spawn(cmd, args, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+  const { cmd, args, shell } = viteCommand(extra);
+  const child = spawn(cmd, args, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], detached: !IS_WIN, shell: shell ?? false });
   let log = '';
   child.stdout.on('data', (d) => (log += d));
   child.stderr.on('data', (d) => (log += d));
   const killGroup = (sig) => {
     try {
-      if (child.pid) process.kill(-child.pid, sig);
+      if (!child.pid) return;
+      if (IS_WIN) spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F']);
+      else process.kill(-child.pid, sig);
     } catch {
       /* ya terminó */
     }
@@ -341,12 +364,12 @@ export function buildProd({ force = false, pnpmBuild = false, log = console.log 
   if (pnpmBuild) {
     outDir = 'dist';
     log('[qa] pnpm build …');
-    res = spawnSync('pnpm', ['build'], { cwd: ROOT, encoding: 'utf8' });
+    res = spawnSync(IS_WIN ? 'pnpm.cmd' : 'pnpm', ['build'], { cwd: ROOT, encoding: 'utf8', shell: IS_WIN });
   } else {
     outDir = 'qa-output/dist';
     log('[qa] vite build (aislado en qa-output/dist) …');
-    const { cmd, args } = viteCommand(['build', '--outDir', outDir, '--emptyOutDir']);
-    res = spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8' });
+    const { cmd, args, shell } = viteCommand(['build', '--outDir', outDir, '--emptyOutDir']);
+    res = spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8', shell: shell ?? false });
   }
   if (res.status !== 0) {
     const out = `${res.stdout ?? ''}\n${res.stderr ?? ''}`.trim().split('\n').slice(-40).join('\n');

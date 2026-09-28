@@ -1,7 +1,7 @@
 /** Recetas de armas: disparos, recargas, disparo en seco, cambio de arma, granada y placa de armadura. */
 import { WEAPONS } from '../../config';
 import type { WeaponId } from '../../core/types';
-import { between, chance, vary } from '../pure';
+import { between, vary } from '../pure';
 import { noiseBurst, partials, pingScatter, scatter, tone } from '../synth';
 import type { Recipe, RecipeDef } from '../types';
 import { defineRecipe, mechClick, rasp, thunk, whoosh } from './define';
@@ -319,4 +319,3 @@ export const dryId = (w: WeaponId): string => (w === 'pistol' || w === 'smg' ? '
 export const reloadId = (w: WeaponId): string =>
   w === 'pistol' ? 'reload.pistol' : w === 'revolver' ? 'reload.revolver' : w === 'shotgun' ? 'reload.shotgun' : w === 'dmr' ? 'reload.dmr' : 'reload.rifle';
 
-export { chance };

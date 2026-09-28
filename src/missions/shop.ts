@@ -104,7 +104,7 @@ export function createShop(ctx: GameContext, scope: EventScope): ShopController 
     open,
     openNearest(kind) {
       let best: Vendor | null = null;
-      let bestD = ECONOMY.shopRange;
+      let bestD: number = ECONOMY.shopRange;
       for (const v of vendors) {
         if (v.vendor !== kind) continue;
         const d = distToPlayer(ctx, v.pos.x, v.pos.z);

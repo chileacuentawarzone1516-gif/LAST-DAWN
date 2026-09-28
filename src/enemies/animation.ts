@@ -488,9 +488,9 @@ function deathPose(rig: Rig, a: AnimState): void {
   // Espasmos finales que se apagan.
   const late = Math.max(0, t - D);
   const tw = Math.exp(-late * 2.2);
-  P[F.shLX] += Math.sin(late * 21) * 0.09 * tw;
-  P[F.elRX] += Math.sin(late * 17 + 1) * 0.12 * tw;
-  P[F.hpRX] += Math.sin(late * 15) * 0.08 * tw;
+  P[F.shLX] = P[F.shLX]! + Math.sin(late * 21) * 0.09 * tw;
+  P[F.elRX] = P[F.elRX]! + Math.sin(late * 17 + 1) * 0.12 * tw;
+  P[F.hpRX] = P[F.hpRX]! + Math.sin(late * 15) * 0.08 * tw;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

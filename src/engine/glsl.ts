@@ -167,7 +167,6 @@ uniform sampler2D tScene;
 uniform sampler2D tBloom;
 uniform float uBloom;
 uniform float uChroma;
-uniform vec2 uRes;
 uniform float uGrain;
 ${SCREEN_OVERLAY_GLSL}
 
