@@ -1,0 +1,36 @@
+{
+  "name": "dead-signal-exclusion-zone",
+  "version": "1.0.0",
+  "description": "DEAD SIGNAL: EXCLUSION ZONE — FPS de extracción con zombis, 100% procedural, en el navegador.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "qa:smoke": "node scripts/qa/smoke.mjs",
+    "qa:perf": "node scripts/qa/perf.mjs",
+    "qa:playthrough": "node scripts/qa/playthrough.mjs",
+    "qa:previews": "node scripts/qa/previews.mjs",
+    "qa": "pnpm typecheck && pnpm test && pnpm build && pnpm qa:smoke && pnpm qa:previews && pnpm qa:playthrough"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "@types/three": "^0.186.0",
+    "playwright-core": "^1.63.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}
