@@ -188,3 +188,6 @@ export class Disposer {
     for (const fn of this.fns.splice(0)) fn();
   }
 }
+
+/** Pila tipográfica monoespaciada del sistema (idéntica a la del CSS) para los canvas. */
+export const MONO_FONT = 'ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, "Liberation Mono", monospace';

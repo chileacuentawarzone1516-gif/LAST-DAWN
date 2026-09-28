@@ -5,6 +5,7 @@
 //         [--cycles=3] [--cycle-s=60] [--skip-points] [--skip-leaks] [--no-stress]
 //         [--budget-calls=N] [--budget-tris=N] [--update-ms=5] [--strict-update]
 //         [--leak-geom=10] [--leak-tex=2] [--leak-prog=2] [--leak-objects=80] [--leak-listeners=0]
+//         [--inject-leak]   (autoprueba: inyecta una fuga y exige que el detector la vea → FAIL)
 //
 // Los presupuestos de render salen de RENDER.budget (src/config.ts) y son ESTRICTOS (FAIL).
 // El tiempo de update() por frame es INFORMATIVO (WARN) salvo --strict-update: SwiftShader no
@@ -189,6 +190,21 @@ async function main() {
         }, undefined, 'muestra de fugas');
         return { label, ...s };
       };
+      // Autoprueba del detector: --inject-leak añade 15 mallas con geometría propia y 1 listener por cada
+      // partida nueva; el barrido DEBE terminar en FAIL (si no, el detector de fugas está roto).
+      if (args['inject-leak']) {
+        R.info('--inject-leak: fuga artificial activa (se espera FAIL en geometrías, objetos y listeners)');
+        await bot.run((ctx) => {
+          let proto = null;
+          ctx.scene.traverse((o) => {
+            if (!proto && o.isMesh) proto = o;
+          });
+          ctx.bus.on('flow:started', () => {
+            for (let i = 0; i < 15 && proto; i++) ctx.scene.add(new proto.constructor(new proto.geometry.constructor(1, 1), proto.material));
+            ctx.bus.on('input:digit', () => {});
+          });
+        });
+      }
       // Se parte de una partida NUEVA para que el ciclo 1 sea "start"; los siguientes son "restart".
       await bot.toTitle();
       for (let c = 1; c <= cycles; c++) {

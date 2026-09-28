@@ -126,7 +126,6 @@ class GeoBuilder {
     }
     const flat = g.index ? g.toNonIndexed() : g;
     if (flat !== g) g.dispose();
-    flat.deleteAttribute('uv');
     flat.computeVertexNormals();
     this.parts.push(flat);
   }

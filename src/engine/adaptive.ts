@@ -40,9 +40,12 @@ export function createAdaptiveScale(cfg: AdaptiveConfig): AdaptiveScale {
   let sinceRaise = 99;
   /** Tras cambiar de escala se descarta una ventana para dejar que la medición se estabilice. */
   let settle = 0;
+  let scale = 1;
 
   const state: AdaptiveScale = {
-    scale: 1,
+    get scale() {
+      return scale;
+    },
     enabled: cfg.enabled,
     push(dt) {
       if (!state.enabled) return false;
@@ -58,17 +61,17 @@ export function createAdaptiveScale(cfg: AdaptiveConfig): AdaptiveScale {
         return false;
       }
       sinceRaise++;
-      if (fps < cfg.lowFps && state.scale > cfg.minScale + 1e-6) {
+      if (fps < cfg.lowFps && scale > cfg.minScale + 1e-6) {
         if (sinceRaise <= 2) needGood = Math.min(MAX_GOOD_WINDOWS, needGood * 2);
-        state.scale = Math.max(cfg.minScale, round2(state.scale - cfg.step));
+        scale = Math.max(cfg.minScale, round2(scale - cfg.step));
         good = 0;
         settle = 1;
         return true;
       }
-      if (fps > cfg.highFps && state.scale < 1 - 1e-6) {
+      if (fps > cfg.highFps && scale < 1 - 1e-6) {
         good++;
         if (good >= needGood) {
-          state.scale = Math.min(1, round2(state.scale + cfg.step));
+          scale = Math.min(1, round2(scale + cfg.step));
           good = 0;
           sinceRaise = 0;
           settle = 1;
@@ -80,7 +83,7 @@ export function createAdaptiveScale(cfg: AdaptiveConfig): AdaptiveScale {
       return false;
     },
     reset() {
-      state.scale = 1;
+      scale = 1;
       frames = 0;
       time = 0;
       good = 0;

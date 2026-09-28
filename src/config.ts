@@ -679,6 +679,14 @@ export interface QualityPreset {
   viewDistance: number;
   particles: number;
   decals: number;
+  /** Muestras MSAA del render target HDR del post-proceso (0 = sin MSAA; 'low' no usa post). */
+  msaa: number;
+  /** Anisotropía máxima de las texturas. */
+  anisotropy: number;
+  /** Reflejos ambientales (PMREM del cielo) en los materiales PBR. */
+  envMap: boolean;
+  /** Texturas procedurales baratas (128 px, sin mapas de normales). */
+  lowTextures: boolean;
 }
 
 export const RENDER = {
@@ -686,9 +694,9 @@ export const RENDER = {
   /** Reajuste dinámico de resolución si los FPS bajan de `lowFps` durante `windowS` s. */
   adaptive: { enabled: true, lowFps: 52, highFps: 58, windowS: 2, minScale: 0.6, step: 0.1 },
   presets: {
-    low: { pixelRatioMax: 1, shadows: false, shadowMapSize: 1024, bloom: false, viewDistance: 170, particles: 250, decals: 40 },
-    medium: { pixelRatioMax: 1.5, shadows: true, shadowMapSize: 1536, bloom: true, viewDistance: 230, particles: 600, decals: 80 },
-    high: { pixelRatioMax: 2, shadows: true, shadowMapSize: 2048, bloom: true, viewDistance: 300, particles: 1200, decals: 160 },
+    low: { pixelRatioMax: 1, shadows: false, shadowMapSize: 1024, bloom: false, viewDistance: 170, particles: 250, decals: 40, msaa: 0, anisotropy: 2, envMap: false, lowTextures: true },
+    medium: { pixelRatioMax: 1.5, shadows: true, shadowMapSize: 1536, bloom: true, viewDistance: 230, particles: 600, decals: 80, msaa: 2, anisotropy: 4, envMap: true, lowTextures: false },
+    high: { pixelRatioMax: 2, shadows: true, shadowMapSize: 2048, bloom: true, viewDistance: 300, particles: 1200, decals: 160, msaa: 4, anisotropy: 8, envMap: true, lowTextures: false },
   } as Record<QualityLevel, QualityPreset>,
   defaultQuality: 'high' as QualityLevel,
   /** Paleta de la hora azul (hex). */
@@ -698,6 +706,17 @@ export const RENDER = {
   exposure: 0.95,
   /** Presupuestos que vigilan los scripts de QA (renderer.info). */
   budget: { drawCalls: 900, triangles: 1_200_000 },
+  /** Luna: dirección de la luz direccional y del disco del cielo (grados; azimut 0 = norte, + hacia el este). */
+  moon: { azimuthDeg: -34, elevationDeg: 38 },
+  /** Frustum de sombra de la luna: semilado (m) y adelanto hacia donde mira el jugador (m). */
+  shadowFrustum: 38,
+  shadowLead: 10,
+  /** Pool fijo de luces puntuales para fogonazos/explosiones (nunca cambia: no recompila shaders). */
+  flashLights: 3,
+  /** Bloom: intensidad, umbral (HDR lineal) y rodilla. */
+  bloom: { strength: 0.2, threshold: 1.05, knee: 0.5 },
+  /** Post: viñeta base, grano y aberración cromática leve. */
+  post: { vignette: 0.5, grain: 0.035, chroma: 0.006 },
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────

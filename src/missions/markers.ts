@@ -36,7 +36,7 @@ class GroundRing {
   private colorHex = -1;
   private arcSegments = 0;
 
-  constructor(private readonly radius: number, x: number, y: number, z: number, withArc: boolean, tex: GlowTextures) {
+  constructor(radius: number, x: number, y: number, z: number, withArc: boolean, tex: GlowTextures) {
     const r = radius;
     this.outer = new THREE.Mesh(new THREE.RingGeometry(r - 0.16, r, RING_SEGMENTS, 1), additive(null, 0xffffff, 0.9, true));
     this.disc = new THREE.Mesh(new THREE.CircleGeometry(r, 48), additive(tex.disc, 0xffffff, 0.32, true));
@@ -274,9 +274,9 @@ export function createMarkers(ctx: GameContext, tex: GlowTextures): MissionMarke
         lzColumn.setColor(hex);
         lzRing.setColor(hex);
         lzColumn.setOpacity((landed ? 0.8 : 0.62) * pulse);
-        lzRing.update(t, landed ? 1.2 : 0.9);
-        // Mientras aterriza, el disco late más rápido (el helicóptero llega).
-        if (ex.phase === 'inbound') lzRing.update(t * (1 + smoothstep(0, 1, 1 - ex.etaRemaining / MISSIONS.extraction.etaS)), 1);
+        // Mientras el helicóptero se acerca, el anillo gira/late cada vez más rápido.
+        const rush = ex.phase === 'inbound' ? 1 + smoothstep(0, 1, 1 - ex.etaRemaining / MISSIONS.extraction.etaS) : 1;
+        lzRing.update(t * rush, landed ? 1.2 : 0.9);
       }
     },
     dispose() {

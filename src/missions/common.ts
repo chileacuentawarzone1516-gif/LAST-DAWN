@@ -89,7 +89,8 @@ export function createGlowTextures(): GlowTextures {
 export function disposeOwned(root: THREE.Object3D, shared: ReadonlySet<THREE.Material>): void {
   root.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
-    if (mesh.geometry) mesh.geometry.dispose();
+    // La geometría de los Sprite es un singleton interno de three: no se toca.
+    if (mesh.geometry && !(obj as THREE.Sprite).isSprite) mesh.geometry.dispose();
     const mat = mesh.material as THREE.Material | THREE.Material[] | undefined;
     if (!mat) return;
     for (const m of Array.isArray(mat) ? mat : [mat]) if (!shared.has(m)) m.dispose();
