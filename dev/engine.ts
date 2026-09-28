@@ -181,11 +181,12 @@ declare global {
     };
   }
 }
-const loseExt = (): WEBGL_lose_context | null => engine.renderer.getContext().getExtension('WEBGL_lose_context');
+// La extensión se pide una vez: con el contexto perdido getExtension() devuelve null.
+const loseCtx = engine.renderer.getContext().getExtension('WEBGL_lose_context');
 window.__dev = {
   mannequin(v) { mannequin.visible = v; vcube.visible = !v; },
-  loseContext() { loseExt()?.loseContext(); },
-  restoreContext() { loseExt()?.restoreContext(); },
+  loseContext() { loseCtx?.loseContext(); },
+  restoreContext() { loseCtx?.restoreContext(); },
   view(x, z, yaw, pitch) { devPos.x = x; devPos.z = z; devYaw = yaw; devPitch = pitch; },
   panel(v) { panel.style.display = v ? '' : 'none'; },
   genMs,

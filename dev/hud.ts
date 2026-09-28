@@ -2,6 +2,8 @@ import { createDevGame, devPageStyles } from '../src/dev/harness';
 import { CONTAMINATION, MAP } from '../src/config';
 import type { EndReason, MissionId, ZoneId } from '../src/core/types';
 import type { UiHandle } from '../src/ui';
+import { updateProfile } from '../src/core/profile';
+import { applyPreset, randomProfile, withGender } from '../src/rules/character';
 import type { Game } from '../src/game/Game';
 
 const style = document.createElement('style');
@@ -35,7 +37,12 @@ const zone = (z: ZoneId, threat: number) => { s.player.zone = z; ctx.bus.emit('z
 const end = (result: 'won' | 'lost', reason: EndReason) => ctx.bus.emit('flow:ended', { result, reason });
 const complete = (id: MissionId) => { s.missions[id].status = 'completed'; ctx.bus.emit('mission:completed', { id, reward: 1000 }); };
 
+const setGender = (g: 'male' | 'female') => { const n = withGender(s.profile, g); updateProfile(ctx, { gender: n.gender, name: n.name, appearance: n.appearance }); };
 const actions: Array<[string, string, () => void]> = [
+  ['Perfil', 'Masculino', () => setGender('male')], ['Perfil', 'Femenino', () => setGender('female')],
+  ['Perfil', 'Aleatorio', () => { const r = randomProfile(() => Math.random()); updateProfile(ctx, r); }],
+  ['Perfil', 'Preset 3', () => updateProfile(ctx, { appearance: applyPreset(s.profile, 2).appearance })],
+  ['Perfil', 'Nombre largo', () => updateProfile(ctx, { name: 'Capitana Núñez-07' })],
   ['Jugador', 'Vida 30', () => { s.player.hp = 30; }], ['Jugador', 'Vida 100', () => { s.player.hp = 100; }],
   ['Jugador', 'Blindaje 0/60', () => { s.player.armor = s.player.armor > 0 ? 0 : 60; }],
   ['Jugador', 'Munición baja', () => { const sl = s.player.slots[s.player.activeSlot]; if (sl) sl.mag = 3; }],

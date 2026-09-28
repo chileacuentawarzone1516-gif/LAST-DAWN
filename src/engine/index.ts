@@ -176,11 +176,10 @@ export function createEngine(opts: EngineOptions): Engine {
     contextLost = true;
   };
   const onContextRestored = (): void => {
-    // three reinicializa sus recursos de GPU (texturas y buffers se vuelven a subir solos);
-    // los render targets y el entorno PMREM (contenido horneado) hay que reconstruirlos.
-    envRT?.dispose();
+    // three reinicializa sus recursos de GPU: texturas, buffers y render targets se recrean solos al
+    // usarse. Sólo el entorno PMREM (contenido horneado) hay que regenerarlo; el objeto viejo se
+    // descarta SIN dispose() (sus handles pertenecen al contexto perdido y darían avisos de GL).
     envRT = null;
-    post.invalidate();
     lastNow = 0;
     contextLost = false;
     applyQuality();

@@ -146,12 +146,6 @@ export class PostStack {
     }
   }
 
-  /** Libera los render targets (pérdida de contexto): `configure` los recrea. */
-  invalidate(): void {
-    this.disposeTargets();
-    this.settings = { ...this.settings, mode: 'direct' };
-  }
-
   /** Tamaño del framebuffer en píxeles de dispositivo. */
   resize(pxWidth: number, pxHeight: number): void {
     this.width = Math.max(1, Math.floor(pxWidth));
