@@ -1,0 +1,43 @@
+{
+  "name": "last-dawn",
+  "version": "1.0.0",
+  "description": "LAST DAWN — FPS de extracción con zombis, 100% procedural, en el navegador.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.12.0",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "qa:smoke": "node scripts/qa/smoke.mjs",
+    "qa:perf": "node scripts/qa/perf.mjs",
+    "qa:playthrough": "node scripts/qa/playthrough.mjs",
+    "qa:previews": "node scripts/qa/previews.mjs",
+    "qa": "pnpm typecheck && pnpm test && pnpm build && pnpm qa:deps && pnpm qa:smoke && pnpm qa:previews && pnpm qa:perf && pnpm qa:audio && pnpm qa:playthrough",
+    "qa:audio": "node scripts/qa/audio-render.mjs",
+    "qa:deps": "node scripts/qa/depcheck.mjs",
+    "assets:characters": "node tools/optimize-characters.mjs"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
+    "@types/node": "^22.20.4",
+    "@types/three": "^0.186.0",
+    "meshoptimizer": "^1.3.0",
+    "playwright-core": "^1.63.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}
