@@ -1,6 +1,7 @@
 import { Game } from './game/Game';
 import { initialQuality, isTouchDevice } from './core/device';
 import { installQa } from './game/qa';
+import type { PerfHooks } from './game/perf';
 
 function fail(message: string): void {
   const boot = document.getElementById('boot');
@@ -35,19 +36,34 @@ function main(): void {
   app.prepend(canvas);
 
   // Deja pintar el mensaje de carga antes de generar el mundo (bloquea el hilo un momento).
-  requestAnimationFrame(() =>
-    setTimeout(() => {
-      try {
-        const game = new Game({ canvas, qa, quality, touch });
-        if (qa) installQa(game);
-        game.start();
-        document.getElementById('boot')?.remove();
-      } catch (err) {
-        console.error(err);
-        fail(err instanceof Error ? err.message : String(err));
-      }
-    }, 0),
-  );
+  // `perf` sólo existe con ?perf=1 (instrumentación pasiva); en modo normal es null y no se carga nada.
+  const boot = (perf: PerfHooks | null): void => {
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        try {
+          perf?.mark('game:construct');
+          const game = new Game({ canvas, qa, quality, touch });
+          perf?.attachGame(game);
+          if (qa) installQa(game);
+          game.start();
+          document.getElementById('boot')?.remove();
+          perf?.mark('boot:removed');
+        } catch (err) {
+          console.error(err);
+          perf?.bootFailed(err instanceof Error ? err.message : String(err));
+          fail(err instanceof Error ? err.message : String(err));
+        }
+      }, 0),
+    );
+  };
+  if (params.get('perf') === '1') {
+    void import('./game/perf').then(
+      (m) => boot(m.installPerf({ qa, touch, quality })),
+      () => boot(null),
+    );
+  } else {
+    boot(null);
+  }
 }
 
 main();

@@ -23,6 +23,9 @@
     "qa": "pnpm typecheck && pnpm test && pnpm build && pnpm qa:deps && pnpm qa:smoke && pnpm qa:previews && pnpm qa:perf && pnpm qa:audio && pnpm qa:playthrough",
     "qa:audio": "node scripts/qa/audio-render.mjs",
     "qa:deps": "node scripts/qa/depcheck.mjs",
+    "qa:mobile": "node scripts/qa/mobile.mjs",
+    "qa:instrumentation": "node scripts/qa/instrumentation.mjs",
+    "qa:baseline": "node scripts/qa/baseline.mjs",
     "assets:characters": "node tools/optimize-characters.mjs"
   },
   "dependencies": {

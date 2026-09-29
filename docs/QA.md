@@ -14,6 +14,11 @@ Todo es determinista y sin dependencias nuevas (playwright-core + vite + vitest)
 | `pnpm qa:playthrough` | bot determinista: escenarios A–F sobre las reglas |
 | `node scripts/qa/depcheck.mjs` | dependencias declaradas vs imports reales |
 | `pnpm test -- tests/qa.contract.test.ts` | contrato estático del repositorio |
+| `pnpm qa:mobile` | perfil táctil emulado (v0.1.5): controles, multitáctil, HUD, orientación, audio, ciclo de vida |
+| `pnpm qa:instrumentation` | la instrumentación `?perf=1` es no intrusiva y registra métricas (v0.1.5) |
+| `pnpm qa:baseline` | ejecuta cada suite por separado y guarda logs + entorno en `qa-output/baseline-0.1.5/` |
+
+`qa:mobile`, `qa:instrumentation` y `qa:baseline` no forman parte de `pnpm qa` (decisión pendiente del PLAN v0.1.5).
 
 Código de salida ≠ 0 si algo falla. Cada aserción imprime `PASS`/`FAIL`; `WARN` es informativo, `SKIP` = no ejecutable hoy.
 Salida en `qa-output/` (ignorado por git): `smoke/`, `previews/`, `perf/`, `playthrough/`, `dist/` (build aislado).
@@ -94,6 +99,47 @@ Justificar excepciones en `EVENT_ALLOW` / `ORPHAN_ALLOW`.
 - `__qa.step(s, 0)` no termina (bucle con dt=0 en `Game.step`); los scripts nunca lo usan.
 - Los escenarios asumen: interactuables en `MAP.relay`/`MAP.lz.radio`/jaulas/armería, ETA/ventana de `MISSIONS`, motivos de
   denegación `funds|full|owned` y que la tienda se cierra con E. Ajustar el escenario si el contrato cambia.
+
+## Instrumentación pasiva (`?perf=1`) — v0.1.5
+
+Mide el rendimiento **sin cambiar el juego**. Sólo se carga con `?perf=1` (chunk aparte, import dinámico en
+`src/main.ts`); sin ese parámetro no se descarga ni se ejecuta nada. Código: `src/game/perf.ts` (navegador) y
+`src/game/perfStats.ts` (estadísticas puras, `tests/perf.stats.test.ts`).
+
+- **No toca** el bucle del juego, `requestAnimationFrame`, el paso de simulación, la calidad, la resolución
+  dinámica, el render ni el audio: observa con su propio callback de rAF.
+- **Sin `?qa=1`** para medir en un dispositivo real: `?qa=1` activa `preserveDrawingBuffer` y desactiva el
+  escalado adaptativo, así que el informe con `?qa=1&perf=1` sale marcado `validForDeviceFps: false`.
+- Distinguible: `html[data-perf="1"]` y un distintivo «PERF» sin interacción en el borde izquierdo.
+- Registra: frame time (buffer de ≈ 262 000 intervalos), ventanas de 5 s con FPS derivado, p50/p95/p99, frames
+  > 2 × mediana, pausas > 100/250 ms y rachas de stutter; muestra por ventana de calidad, `resolutionScale`,
+  pixel ratio, draw calls, recursos de GPU y `performance.memory` (clase C); arranque (navegación, construcción
+  del juego, generación del mundo por fases, título interactivo, primer frame, peor frame de los 5 s iniciales de
+  cada partida); cargas del GLB de personaje; ciclo de vida (visibilidad, pagehide/pageshow, freeze/resume,
+  blur/focus, pantalla completa, orientación, tamaño, pérdida/restauración de contexto, estado del audio, flujo);
+  errores clasificados (aplicación / externo / desconocido; recursos, promesas y CSP); datos del dispositivo y de WebGL.
+- La cadencia derivada de rAF se etiqueta **«rAF observed cadence»**: NO es la frecuencia física de la pantalla.
+- API en consola: `__perf.mark('escena')`, `__perf.summary(desdeMs, hastaMs)`, `__perf.snapshot({ raw: true })`,
+  `__perf.download()` (JSON), `__perf.resetFrames()` (tras el calentamiento).
+- La sobrecarga propia (µs por frame) va en el informe; no se declara «cero sobrecarga».
+
+## QA móvil (`pnpm qa:mobile`) — v0.1.5
+
+Emulación de Chromium (`isMobile`, `hasTouch`, DPR, viewport) con `?touch=1&qa=1&q=low` en perfiles 16:9, 20:9,
+19,5:9, tableta 16:10 y 4:3 y una aproximación del Redmi Note 8 Pro (por especificación, a confirmar con `adb`).
+Toques reales por CDP (`Input.dispatchTouchEvent`): joystick, mirada, botones, multitáctil (3 dedos), interactuar,
+mapa, pausa, ajustes (zurdo), vertical, áreas seguras (`Emulation.setSafeAreaInsetsOverride`), vibración (espía),
+desbloqueo de audio con la política de autoplay real y pantalla completa (sin `?qa=1`, porque con `qa` no se pide).
+Los solapes botón táctil ↔ HUD y los botones < 48 px se informan como WARN/INFO (criterio aún no aprobado).
+**No mide rendimiento**: FPS, frame time y memoria de la emulación no son datos de Android real.
+
+## Baseline v0.1.5 (`pnpm qa:baseline`)
+
+`pnpm qa:baseline --label=windows-omen` ejecuta typecheck, test, build y las 6 suites de navegador **por separado**
+(`--with-new` añade `qa:mobile` y `qa:instrumentation`), registra Node, pnpm, commit, estado de git, SO y Chromium, y
+guarda `env.json`, un `.log` por suite, `summary.json` y `summary.md` en `qa-output/baseline-0.1.5/<label>-<fecha>/`.
+No corrige nada: una suite que falla se registra y se continúa. Protocolo del dispositivo Android físico:
+[ANDROID-BASELINE.md](ANDROID-BASELINE.md).
 
 ## Añadir un escenario
 
