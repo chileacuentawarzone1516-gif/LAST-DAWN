@@ -20,11 +20,11 @@ Los modelos 3D del mundo, los infectados, las armas, las texturas y todo el audi
 | Fichero (`public/models/characters/`) | Peso | Uso |
 | --- | --- | --- |
 | `LD_Character_Male.glb` / `LD_Character_Female.glb` | 1,4 / 1,8 MB | Variante **alta** (escritorio): todos los triángulos, texturas a 2048 |
-| `LD_Character_Male_low.glb` / `LD_Character_Female_low.glb` | 1,2 / 1,2 MB | Variante **baja** (móviles, calidad baja, poca RAM): ~45 % menos triángulos, texturas a 1024 |
+| `LD_Character_Male_low.glb` / `LD_Character_Female_low.glb` | 1,25 / 1,29 MB | Variante **baja** (móviles, calidad baja, poca RAM): 24–40 % menos triángulos visibles (pelo, ropa y accesorios simplificados; **el rostro —`Body`, `Brows`, `Eye`— se conserva intacto**), texturas a 1024 |
 
 Los modelos originales (7,8 y 11 MB) están en `assets-src/characters/` y **no se cargan en el juego**. Las variantes
 se generan con `pnpm assets:characters` (`tools/optimize-characters.mjs`): geometría cuantizada y comprimida con
-meshopt, texturas WebP y simplificación de mallas para la variante baja. Se verificó por render que la variante alta
+meshopt, texturas WebP y simplificación de mallas para la variante baja (excepto las del rostro: simplificarlas deformaba boca, nariz y párpados). Se verificó por render que la variante alta
 es visualmente idéntica al original (diferencia media 0,03-0,06 sobre 255) y que ambas conservan esqueleto de 56
 huesos, piezas y materiales por nombre (`tests/character.assets.test.ts`).
 

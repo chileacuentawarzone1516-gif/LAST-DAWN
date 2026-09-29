@@ -19,8 +19,8 @@ interface Gltf {
   skins: { joints: number[] }[];
   images: { name: string }[];
 }
-function readGlb(file: string): Gltf {
-  const b = readFileSync(new URL(`../public/models/characters/${file}`, import.meta.url));
+function readGlb(file: string, dir = 'public/models/characters'): Gltf {
+  const b = readFileSync(new URL(`../${dir}/${file}`, import.meta.url));
   expect(b.readUInt32LE(0)).toBe(0x46546c67); // 'glTF'
   const jsonLen = b.readUInt32LE(12);
   expect(b.readUInt32LE(16)).toBe(0x4e4f534a); // 'JSON'
@@ -137,15 +137,33 @@ describe('colores resueltos', () => {
   });
 });
 
+const GLB_FILES = [
+  ['male', 'LD_Character_Male.glb'], ['male', 'LD_Character_Male_low.glb'],
+  ['female', 'LD_Character_Female.glb'], ['female', 'LD_Character_Female_low.glb'],
+] as const;
+
 describe('integridad de los GLB (sin WebGL)', () => {
-  for (const [g, file] of [['male', 'LD_Character_Male.glb'], ['female', 'LD_Character_Female.glb']] as const) {
+  for (const [g, file] of GLB_FILES) {
     it(`${file}: piezas, roles, esqueleto y coherencia con CHARACTER`, () => {
       const j = readGlb(file);
       const G = g === 'male' ? 'M' : 'F';
       expect(j.meshes).toHaveLength(30);
-      expect(j.skins).toHaveLength(1);
-      expect(j.skins[0]!.joints).toHaveLength(56);
-      const boneNames = new Set(j.skins[0]!.joints.map((i) => j.nodes[i]!.name));
+      // Esqueleto: la optimización (cuantización) genera un skin por malla con matrices inversas propias,
+      // pero TODOS deben referenciar exactamente las mismas 56 articulaciones (mismos nodos y orden) y
+      // toda malla debe estar skinneada.
+      expect(j.skins.length).toBeGreaterThanOrEqual(1);
+      const joints = j.skins[0]!.joints;
+      expect(joints).toHaveLength(56);
+      expect(new Set(joints).size).toBe(56);
+      for (const sk of j.skins) expect(sk.joints).toEqual(joints);
+      const meshNodes = j.nodes.filter((n) => n.mesh !== undefined);
+      expect(meshNodes).toHaveLength(30);
+      expect(meshNodes.every((n) => n.skin !== undefined)).toBe(true);
+      const boneNames = new Set(joints.map((i) => j.nodes[i]!.name));
+      expect(boneNames.size).toBe(56);
+      // Los 56 nombres coinciden exactamente con los del GLB original (assets-src).
+      const src = readGlb(`LD_Character_${g === 'male' ? 'Male' : 'Female'}.glb`, 'assets-src/characters');
+      expect([...boneNames].sort()).toEqual(src.skins[0]!.joints.map((i) => src.nodes[i]!.name).sort());
       for (const b of ['Root', 'Hips', 'Spine', 'Chest', 'UpperChest', 'Neck', 'Head', 'LeftUpperArm', 'RightUpperArm', 'LeftLowerArm', 'RightLowerArm',
         'LeftHand', 'RightHand', 'LeftUpperLeg', 'RightUpperLeg', 'LeftLowerLeg', 'RightLowerLeg', 'LeftFoot', 'RightFoot', 'LeftEye', 'RightEye', 'Jaw']) {
         expect(boneNames.has(b)).toBe(true);

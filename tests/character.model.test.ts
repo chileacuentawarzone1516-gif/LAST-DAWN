@@ -65,7 +65,7 @@ describe('buildCharacterModel', () => {
         }
       }
     }
-  });
+  }, 20_000); // 576 modelos: ~4,4 s aislado; con la suite en paralelo puede superar el límite por defecto (5 s)
   it('las dimensiones cambian por género', () => {
     const m = buildCharacterModel(resolveLook(app('male', { hairStyle: 0, accessory: 0 })));
     const f = buildCharacterModel(resolveLook(app('female', { hairStyle: 0, accessory: 0 })));

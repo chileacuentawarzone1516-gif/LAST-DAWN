@@ -3,13 +3,25 @@
 //
 // Uso:  node scripts/qa/depcheck.mjs [--strict] [--allow-new]
 //   FAIL: import de un paquete NO declarado; subruta three/addons inexistente; dependencia nueva
-//         fuera de la lista permitida (three, vite, vitest, typescript, playwright-core, @types/*)
+//         fuera de la lista permitida (three, vite, vitest, typescript, playwright-core, @types/*);
+//         dependencia de herramienta (TOOL_DEPS) que no sea devDependency, que no use su herramienta o
+//         que se importe desde src/ (acabaría en el build).
 //   WARN: dependencia declarada y sin uso (FAIL con --strict)
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, Report, parseArgs, runMain, walk } from './lib.mjs';
 
 const ALLOWED = new Set(['three', 'vite', 'vitest', 'typescript', 'playwright-core', '@types/node', '@types/three']);
+/**
+ * Dependencias de DESARROLLO permitidas sólo para una herramienta concreta (nunca en el juego):
+ * el pipeline de optimización de los modelos de personaje (ver ASSETS.md).
+ */
+const TOOL_DEPS = {
+  '@gltf-transform/core': 'tools/optimize-characters.mjs',
+  '@gltf-transform/extensions': 'tools/optimize-characters.mjs',
+  '@gltf-transform/functions': 'tools/optimize-characters.mjs',
+  meshoptimizer: 'tools/optimize-characters.mjs',
+};
 const BUILTINS = new Set(['fs', 'path', 'os', 'child_process', 'url', 'zlib', 'http', 'https', 'net', 'util', 'stream', 'crypto', 'assert', 'events', 'timers', 'module', 'process', 'buffer', 'readline', 'worker_threads']);
 /** Binarios de CLI (scripts de package.json) → paquete que los aporta. */
 const BIN_TO_PKG = { tsc: 'typescript', vite: 'vite', vitest: 'vitest' };
@@ -47,7 +59,7 @@ async function main() {
   const declared = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
   const files = [
     ...walk('src', ['.ts']), ...walk('dev', ['.ts', '.html']), ...walk('tests', ['.ts']), ...walk('scripts', ['.mjs', '.js', '.ts']),
-    'vite.config.ts', 'index.html',
+    ...walk('tools', ['.mjs', '.js', '.ts']), 'vite.config.ts', 'index.html',
   ].filter((f) => f !== 'scripts/qa/depcheck.mjs' && existsSync(join(ROOT, f)));
 
   const used = new Map(); // paquete → primeros ficheros que lo usan
@@ -96,8 +108,16 @@ async function main() {
 
   R.section('Reglas del proyecto');
   if (!args['allow-new']) {
-    const extra = Object.keys(declared).filter((n) => !ALLOWED.has(n));
+    const extra = Object.keys(declared).filter((n) => !ALLOWED.has(n) && !(n in TOOL_DEPS));
     R.check('sin dependencias nuevas (three, vite, vitest, typescript, playwright-core, @types/node|three)', extra.length === 0, extra.join(', ') || 'lista permitida');
+  }
+  for (const [name, tool] of Object.entries(TOOL_DEPS)) {
+    if (!(name in declared)) continue;
+    const users = used.get(name) ?? [];
+    const inSrc = users.filter((f) => f.startsWith('src/'));
+    const ok = name in (pkg.devDependencies ?? {}) && !(name in (pkg.dependencies ?? {})) && users.includes(tool) && inSrc.length === 0;
+    R.check(`${name}: sólo devDependency de ${tool}`, ok,
+      ok ? 'fuera del build' : `dev=${name in (pkg.devDependencies ?? {})} usada-por-herramienta=${users.includes(tool)} en-src=${inSrc.join(', ') || 'no'}`);
   }
   const bad = subpaths.filter(({ spec }) => {
     const rel = spec.replace('three/addons/', '');

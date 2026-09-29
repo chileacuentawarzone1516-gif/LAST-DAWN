@@ -3,7 +3,7 @@
  *
  *  (a) fronteras de módulo   (b) core/rules puros (sin three ni DOM)   (c) sin console.log
  *  (d) invariantes de src/config.ts   (e) cobertura de eventos   (f) ficheros huérfanos
- *  (g) sin assets ni red (todo se genera por código)
+ *  (g) sin assets ni red (todo se genera por código; única excepción: modelos GLB de personaje)
  *
  * Modo de (e) y (f): INFORMATIVO (console.warn) mientras algún módulo siga siendo stub; se endurece solo
  * cuando ningún módulo contiene el marcador PROVISIONAL, o a mano con  QA_STRICT=1 pnpm test  (QA_STRICT=0 lo relaja).
@@ -626,27 +626,53 @@ describe('(f) ficheros huérfanos en src/', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // (g) todo se genera por código: sin assets ni red
+//     ÚNICA excepción (modelos de personaje aportados por el autor, ver ASSETS.md):
+//       · GLTFLoader sólo en src/character/glbModel.ts;
+//       · rutas .glb sólo en src/config.ts y sólo con la forma exacta models/characters/LD_Character_<Male|Female>[_low].glb,
+//         y cada una debe existir en public/.
+//     Cualquier otro asset, extensión, loader o URL externa sigue prohibido.
 // ─────────────────────────────────────────────────────────────────────────────
+const GLTF_LOADER_FILE = 'src/character/glbModel.ts';
+const GLB_REF_FILE = 'src/config.ts';
+const GLB_PATH = /^models\/characters\/LD_Character_(?:Male|Female)(?:_low)?\.glb$/;
+
 describe('(g) sin assets descargados ni red', () => {
   const ASSET = /\.(png|jpe?g|gif|webp|mp3|ogg|wav|flac|glb|gltf|hdr|exr|ktx2|woff2?|ttf|otf)(?=['"`?#])/i;
   const LOADERS = /\b(fetch|XMLHttpRequest|TextureLoader|GLTFLoader|AudioLoader|FileLoader|ImageLoader|RGBELoader|EXRLoader|FontLoader|WebSocket)\b/;
-  it('src/ no referencia ficheros de assets, URLs externas ni loaders de red', () => {
+  /** ¿Todas las referencias a assets de la línea son GLB de personaje permitidos en el fichero permitido? */
+  const allowedAssetLine = (file: string, ln: string): boolean => {
+    if (file !== GLB_REF_FILE) return false;
+    const lits = [...ln.matchAll(/['"`]([^'"`]*\.[A-Za-z0-9]+)['"`]/g)].map((m) => m[1] as string).filter((x) => ASSET.test(`${x}'`));
+    return lits.length > 0 && lits.every((x) => GLB_PATH.test(x));
+  };
+  it('src/ no referencia ficheros de assets, URLs externas ni loaders de red (salvo la excepción GLB documentada)', () => {
     const bad: string[] = [];
     for (const f of SRC_FILES) {
       const withStrings = strip(read(f), false);
       const noStrings = strip(read(f), true);
       const lines = withStrings.split('\n');
       lines.forEach((ln, i) => {
-        if (ASSET.test(ln)) bad.push(`${rel(f)}:${i + 1} asset: ${ln.trim().slice(0, 90)}`);
+        if (ASSET.test(ln) && !allowedAssetLine(rel(f), ln)) bad.push(`${rel(f)}:${i + 1} asset: ${ln.trim().slice(0, 90)}`);
         const url = /['"`]https?:\/\/(?!www\.w3\.org)[^'"`]+/.exec(ln);
         if (url) bad.push(`${rel(f)}:${i + 1} URL externa: ${url[0].slice(0, 80)}`);
       });
       noStrings.split('\n').forEach((ln, i) => {
         const m = LOADERS.exec(ln);
-        if (m) bad.push(`${rel(f)}:${i + 1} usa ${m[1]}`);
+        if (m && !(m[1] === 'GLTFLoader' && rel(f) === GLTF_LOADER_FILE)) bad.push(`${rel(f)}:${i + 1} usa ${m[1]}`);
       });
     }
     expect(bad, `\n${bad.join('\n')}`).toEqual([]);
+  });
+  it('los GLB referenciados son exactamente los 4 modelos de personaje y existen en public/', () => {
+    const refs = [...strip(read(join(ROOT, GLB_REF_FILE)), false).matchAll(/['"`]([^'"`]+\.glb)['"`]/g)].map((m) => m[1] as string);
+    expect([...new Set(refs)].sort()).toEqual([
+      'models/characters/LD_Character_Female.glb', 'models/characters/LD_Character_Female_low.glb',
+      'models/characters/LD_Character_Male.glb', 'models/characters/LD_Character_Male_low.glb',
+    ]);
+    for (const r of refs) expect(existsSync(join(ROOT, 'public', r)), r).toBe(true);
+    // Nada más en public/models que no sean esos modelos.
+    const files = listFiles(join(ROOT, 'public', 'models'), ['']).map((p) => relative(join(ROOT, 'public'), p).split(sep).join('/')).sort();
+    expect(files).toEqual([...new Set(refs)].sort());
   });
   it('index.html no carga recursos externos', () => {
     const html = read(join(ROOT, 'index.html'));

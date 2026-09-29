@@ -3,17 +3,18 @@
  * Optimiza los modelos de personaje (assets-src/characters/*.glb → public/models/characters/):
  *   · geometría: cuantizada + comprimida con meshopt (EXT_meshopt_compression);
  *   · texturas: recodificadas a WebP (EXT_texture_webp) y, en la variante «low», reducidas;
- *   · variante «low» (móviles / calidad baja): mallas simplificadas con meshopt.
+ *   · variante «low» (móviles / calidad baja): mallas simplificadas con meshopt, EXCEPTO las del rostro
+ *     (Body —cara incluida—, Brows, Eye): simplificarlas deformaba boca, nariz y párpados.
  * Conserva nombres de nodos, materiales y esqueleto (el juego los usa por nombre).
  *
- * Uso: node tools/optimize-characters.mjs [--high-tex=2048] [--low-tex=1024] [--low-ratio=0.5]
+ * Uso: node tools/optimize-characters.mjs [--variants=high,low] [--high-tex=2048] [--low-tex=1024] [--low-ratio=0.5]
  * Requiere Chromium (se usa su codificador WebP; ver scripts/qa/lib.mjs, CHROME_PATH).
  */
 import { readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, EXTTextureWebP } from '@gltf-transform/extensions';
-import { meshopt, quantize, simplify } from '@gltf-transform/functions';
+import { meshopt, quantize, simplifyPrimitive, weld } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import { launchBrowser, parseArgs, ROOT } from '../scripts/qa/lib.mjs';
 
@@ -22,6 +23,9 @@ const HIGH_TEX = Number(args['high-tex'] ?? 2048);
 const LOW_TEX = Number(args['low-tex'] ?? 1024);
 const LOW_RATIO = Number(args['low-ratio'] ?? 0.5);
 const WEBP_Q = Number(args['webp-q'] ?? 0.95);
+const VARIANTS = String(args.variants ?? 'high,low').split(',').filter((v) => v === 'high' || v === 'low');
+/** Piezas que definen el rostro: nunca se simplifican (ver cabecera). */
+const PRESERVE = /^LD_[MF]_(Body|Brows|Eye)/;
 const SRC = join(ROOT, 'assets-src', 'characters');
 const OUT = join(ROOT, 'public', 'models', 'characters');
 
@@ -62,10 +66,21 @@ function countTriangles(doc) {
   return Math.round(t);
 }
 
+/** Simplifica todas las primitivas salvo las de las piezas del rostro (PRESERVE). */
+async function simplifyExceptFace(doc) {
+  await doc.transform(weld({ overwrite: false }));
+  const opts = { simplifier: MeshoptSimplifier, ratio: LOW_RATIO, error: 0.005, lockBorder: true };
+  for (const node of doc.getRoot().listNodes()) {
+    const mesh = node.getMesh();
+    if (!mesh || PRESERVE.test(node.getName())) continue;
+    for (const prim of mesh.listPrimitives()) simplifyPrimitive(prim, opts);
+  }
+}
+
 const kb = (n) => `${(n / 1024).toFixed(0)} KB`;
 const files = readdirSync(SRC).filter((f) => f.endsWith('.glb'));
 for (const file of files) {
-  for (const variant of ['high', 'low']) {
+  for (const variant of VARIANTS) {
     const doc = await io.read(join(SRC, file));
     const before = statSync(join(SRC, file)).size;
     const trisBefore = countTriangles(doc);
@@ -82,7 +97,7 @@ for (const file of files) {
     }
     // Geometría
     const steps = [];
-    if (variant === 'low') steps.push(simplify({ simplifier: MeshoptSimplifier, ratio: LOW_RATIO, error: 0.005, lockBorder: true }));
+    if (variant === 'low') steps.push(simplifyExceptFace);
     steps.push(quantize({ quantizePosition: 14, quantizeNormal: 10, quantizeTexcoord: 12 }));
     steps.push(meshopt({ encoder: MeshoptEncoder, level: 'high' }));
     await doc.transform(...steps);

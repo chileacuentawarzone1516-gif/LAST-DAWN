@@ -116,7 +116,7 @@ export const glbUrl = (base: string, file: string): string => `${base.endsWith('
 export type CharacterLod = 'high' | 'low';
 
 /**
- * Variante del GLB según el dispositivo: la ligera (`*_low.glb`: ~45 % menos triángulos, texturas 1024) en
+ * Variante del GLB según el dispositivo: la ligera (`*_low.glb`: 24–40 % menos triángulos visibles con el rostro intacto, texturas 1024) en
  * táctiles, con calidad gráfica 'low' o con poca memoria (`deviceMemory` ≤ lowMemoryGb); si no, la alta.
  */
 export function pickCharacterLod(o: { touch: boolean; quality: string; deviceMemory?: number | undefined }, lowMemoryGb = 4): CharacterLod {
