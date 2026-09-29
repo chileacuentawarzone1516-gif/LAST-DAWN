@@ -246,7 +246,7 @@ export function createTouch(ctx: GameContext): TouchSystem {
   rotate.className = 'tc-rotate';
   rotate.hidden = true;
   rotate.setAttribute('role', 'alert');
-  rotate.innerHTML = `${ICONS.rotate}<h2>Gira el dispositivo</h2><p>DEAD SIGNAL se juega en horizontal</p>`;
+  rotate.innerHTML = `${ICONS.rotate}<h2>Gira el dispositivo</h2><p>LAST DAWN se juega en horizontal</p>`;
 
   // Panel de ajustes (sólo con el juego en pausa).
   const canVibrate = typeof navigator.vibrate === 'function';

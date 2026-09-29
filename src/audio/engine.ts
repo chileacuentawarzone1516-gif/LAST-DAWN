@@ -118,7 +118,7 @@ export function connectVoice(ac: BaseAudioContext, chain: Chain, def: RecipeDef,
 // ─────────────────────────────────────────────────────────────────────────────
 // Persistencia (mute / volumen)
 // ─────────────────────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'deadsignal.audio.v1';
+const STORAGE_KEY = 'lastdawn.audio.v1';
 
 interface Stored {
   master?: number;

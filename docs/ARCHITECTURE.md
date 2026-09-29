@@ -1,4 +1,4 @@
-# DEAD SIGNAL: EXCLUSION ZONE — Arquitectura
+# LAST DAWN — Arquitectura
 
 FPS de extracción con zombis, un jugador, 100 % en el navegador. Three.js + TypeScript + Vite + pnpm.
 Sin backend, sin cuentas, **sin assets descargados**: modelos, texturas y sonidos se generan por código.

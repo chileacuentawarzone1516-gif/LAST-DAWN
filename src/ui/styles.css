@@ -1,4 +1,4 @@
-/* DEAD SIGNAL — interfaz. Colores desde THEME (variables --c-* fijadas por createUi; estos valores son la reserva). */
+/* LAST DAWN — interfaz. Colores desde THEME (variables --c-* fijadas por createUi; estos valores son la reserva). */
 .ds-ui {
   --c-bg: #070b14; --c-panel: rgba(9, 15, 28, 0.78); --c-text: #d6e4f5; --c-dim: #8298b4;
   --c-accent: #5fe0b7; --c-warn: #ffb020; --c-danger: #ff4d4d; --c-reward: #ffd866; --c-info: #6fb4ff;
@@ -261,7 +261,7 @@
 .title-bg { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(214, 228, 245, 0.025) 0 1px, transparent 1px 4px); }
 .title-wrap { position: relative; margin: auto; width: min(94vw, 78em); padding: 2em 1.5em; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 3em; align-items: center; }
 .title-hero { min-width: 0; display: grid; justify-items: start; gap: 0.8em; }
-.title-eyebrow { font-size: 0.72em; letter-spacing: 0.22em; color: var(--c-dim); text-transform: uppercase; }
+.title-eyebrow { font-size: 0.72em; letter-spacing: 0.22em; color: var(--c-dim); text-transform: uppercase; max-width: 34em; }
 .title-glyph { width: 4.2em; color: var(--c-accent); }
 .title-name { margin: 0; display: grid; gap: 0.1em; font-family: var(--cond); line-height: 0.95; }
 .title-main { font-size: min(3.5em, 4.3vw); font-weight: 800; letter-spacing: 0.02em; white-space: nowrap; }

@@ -155,9 +155,9 @@ export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Di
           el(
             'h1',
             { id: 'ds-title-h', class: 'title-name' },
-            el('span', { class: 'title-main', text: 'DEAD SIGNAL' }),
+            el('span', { class: 'title-main', text: 'LAST DAWN' }),
             el('span', { class: 'sr-only', text: ' — ' }),
-            el('span', { class: 'title-sub', text: 'EXCLUSION ZONE' }),
+            el('span', { class: 'title-sub', text: 'EXTRACCIÓN' }),
           ),
           el('p', { class: 'title-slogan', text: SLOGAN }),
           chip.el,
@@ -166,7 +166,7 @@ export function createScreens(ctx: GameContext, settings: SettingsStore, dis: Di
         ),
         el('div', 'title-side panel', tabs.el),
       ),
-      el('footer', { class: 'title-foot', text: 'Todo el juego se genera por código: sin imágenes, fuentes ni sonidos descargados.' }),
+      el('footer', { class: 'title-foot', text: 'Mundo, armas, enemigos y audio se generan por código; sólo el personaje usa modelos 3D incluidos.' }),
     );
     return {
       el: node,

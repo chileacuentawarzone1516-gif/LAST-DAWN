@@ -11,7 +11,7 @@ export interface TouchSettings {
   fps: boolean;
 }
 
-export const SETTINGS_KEY = 'deadsignal.touch.v1';
+export const SETTINGS_KEY = 'lastdawn.touch.v1';
 
 export const DEFAULT_SETTINGS: Readonly<TouchSettings> = { lefty: false, aimHold: false, haptics: true, fps: false };
 

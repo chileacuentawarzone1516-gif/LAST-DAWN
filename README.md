@@ -1,4 +1,4 @@
-# DEAD SIGNAL: EXCLUSION ZONE
+# LAST DAWN
 
 FPS de extracción con zombis para **un jugador**, en el navegador. Distrito industrial en cuarentena a la **hora
 azul**, tres contratos, una horda final y un helicóptero que no espera. Three.js + TypeScript + Vite + pnpm.

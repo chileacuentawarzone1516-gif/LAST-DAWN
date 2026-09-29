@@ -1,5 +1,5 @@
 /**
- * DEAD SIGNAL: EXCLUSION ZONE — configuración y balance.
+ * LAST DAWN — configuración y balance.
  *
  * ÚNICA fuente de verdad de números de juego (daños, precios, tiempos, mapa).
  * Ningún módulo debe hardcodear cifras de balance: se leen de aquí.
@@ -762,7 +762,7 @@ export const ZONE_IDS: readonly ZoneId[] = ['perimeter', 'warehouses', 'refinery
 // ─────────────────────────────────────────────────────────────────────────────
 export const HUD = {
   /** Clave de localStorage donde se recuerdan volumen, silencio y calidad. */
-  storageKey: 'deadsignal.settings.v1',
+  storageKey: 'lastdawn.settings.v1',
   /** Notificaciones apiladas: máximo simultáneo y duración (s). */
   notify: { max: 4, durationS: 4 },
   /** Punto de mira: hueco base y ampliación por unidad de dispersión (en "unidades de interfaz"). */
@@ -830,7 +830,7 @@ export interface CharacterPreset {
 }
 
 export const CHARACTER = {
-  storageKey: 'deadsignal.profile.v1',
+  storageKey: 'lastdawn.profile.v1',
   nameMinLen: 1,
   nameMaxLen: 16,
   defaultName: { male: 'Marcos', female: 'Lucía' } as Record<Gender, string>,
@@ -897,6 +897,19 @@ export const CHARACTER = {
     { id: 'bandana', name: 'Pañuelo' },
     { id: 'headset', name: 'Auriculares' },
   ],
+  /**
+   * Modelos GLB semirrealistas (public/models/characters). El maniquí procedural de src/character es el
+   * respaldo mientras baja el GLB o si falla. `minQuality`: calidad gráfica mínima para usar el GLB
+   * (por debajo se usa el procedural); por defecto también en móvil.
+   */
+  glb: {
+    enabled: true,
+    minQuality: 'low' as QualityLevel,
+    /** Anisotropía máxima de las texturas de la piel (escritorio / táctil). */
+    maxAnisotropy: 4,
+    touchMaxAnisotropy: 2,
+    files: { male: 'models/characters/LD_Character_Male.glb', female: 'models/characters/LD_Character_Female.glb' } as Record<Gender, string>,
+  },
   presets: {
     male: [
       { name: 'Veterano', tagline: 'Ex-militar curtido', appearance: { skin: 1, hairStyle: 0, hairColor: 5, outfit: 0, accessory: 0 } },

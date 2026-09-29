@@ -1,7 +1,7 @@
 {
-  "name": "dead-signal-exclusion-zone",
+  "name": "last-dawn",
   "version": "1.0.0",
-  "description": "DEAD SIGNAL: EXCLUSION ZONE — FPS de extracción con zombis, 100% procedural, en el navegador.",
+  "description": "LAST DAWN — FPS de extracción con zombis, 100% procedural, en el navegador.",
   "private": true,
   "type": "module",
   "license": "MIT",

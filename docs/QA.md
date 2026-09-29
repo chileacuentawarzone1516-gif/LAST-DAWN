@@ -1,4 +1,4 @@
-# QA — DEAD SIGNAL: EXCLUSION ZONE
+# QA — LAST DAWN
 
 Infraestructura de calidad: scripts con Chrome headless (`scripts/qa/`) y tests estáticos (`tests/qa.*.test.ts`).
 Todo es determinista y sin dependencias nuevas (playwright-core + vite + vitest).

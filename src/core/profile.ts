@@ -5,9 +5,13 @@ import type { RunState } from './state';
 import type { Appearance, PlayerProfile } from './types';
 
 /** Persistencia del perfil en localStorage (todo con try/catch: puede estar bloqueado o vacío). */
+/** Clave de la versión anterior del juego (antes «DEAD SIGNAL»): se lee una vez para no perder el perfil. */
+const LEGACY_STORAGE_KEY = 'deadsignal.profile.v1';
+
 export function loadProfile(): PlayerProfile {
   try {
-    return parseProfile(window.localStorage.getItem(CHARACTER.storageKey));
+    const raw = window.localStorage.getItem(CHARACTER.storageKey) ?? window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    return parseProfile(raw);
   } catch {
     return parseProfile(null);
   }

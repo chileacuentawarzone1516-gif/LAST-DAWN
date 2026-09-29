@@ -1,4 +1,4 @@
-/* DEAD SIGNAL — controles táctiles (overlay DOM). Prefijo tc-. La geometría (left/top/tamaño) la fija layout.ts por estilo en línea. */
+/* LAST DAWN — controles táctiles (overlay DOM). Prefijo tc-. La geometría (left/top/tamaño) la fija layout.ts por estilo en línea. */
 .tc-root {
   --tc-fg: #e8f1fc;
   --tc-dim: #8298b4;
