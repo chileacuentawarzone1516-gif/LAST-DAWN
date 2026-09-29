@@ -89,7 +89,7 @@ function smoothNormals(pos: number[], idx: number[]): number[] {
 }
 
 /** |s|^e con el signo de s (superelipse). */
-const sgnPow = (s: number, e: number): number => (s < 0 ? -1 : 1) * Math.abs(s) ** e;
+export const sgnPow = (s: number, e: number): number => (s < 0 ? -1 : 1) * Math.abs(s) ** e;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pesos de esqueleto
@@ -178,6 +178,8 @@ export interface LoftOpts {
   arc?: readonly [number, number];
   /** Recorta la altura máxima por ángulo (escotes, cuellos en V). */
   yMax?: (theta: number) => number;
+  /** Con yMax: devuelve la sección (rx, rz, cx, cz) a la altura recortada, para que el borde siga la superficie. */
+  rowAt?: (y: number, out: Station) => void;
   xf?: Xf;
 }
 export interface TubePoint { x: number; y: number; z: number; ra: number; rb?: number }
@@ -235,6 +237,22 @@ export class Kit<R extends string> {
 }
 
 const _skin: SkinOut = { i0: 0, w0: 1, i1: 0, w1: 0 };
+
+const _up = new THREE.Vector3(0, 1, 0);
+const _d = new THREE.Vector3();
+const _q2 = new THREE.Quaternion();
+
+/**
+ * Transformación que orienta el eje +Y de una primitiva a lo largo de (dx,dy,dz), con su base en P
+ * (el centro queda a `len/2` de P). `roll` gira la pieza sobre su propio eje.
+ */
+export function dirXf(px: number, py: number, pz: number, dx: number, dy: number, dz: number, len = 0, roll = 0): Xf {
+  _d.set(dx, dy, dz).normalize();
+  _q.setFromUnitVectors(_up, _d);
+  if (roll !== 0) _q.multiply(_q2.setFromAxisAngle(_up, roll));
+  _e.setFromQuaternion(_q, 'XYZ');
+  return { x: px + (_d.x * len) / 2, y: py + (_d.y * len) / 2, z: pz + (_d.z * len) / 2, rx: _e.x, ry: _e.y, rz: _e.z };
+}
 
 export class Painter {
   constructor(private readonly bin: Bin, private readonly skin: number | SkinFn) {}
@@ -303,14 +321,31 @@ export class Painter {
    * Las normales son suaves; las tapas (si las hay) son planas.
    */
   loftY(stations: readonly Station[], o: LoftOpts = {}): this {
+    const clip: Station = { y: 0, rx: 0, rz: 0 };
     return this.loft(
       stations.length,
       o,
       (k, th, out) => {
-        const s = stations[k]!;
+        let s = stations[k]!;
         const e = 2 / (s.p ?? o.p ?? 2);
+        if (o.yMax) {
+          const ym = o.yMax(th);
+          if (ym < s.y) {
+            if (o.rowAt) {
+              clip.y = ym;
+              o.rowAt(ym, clip);
+              clip.p = s.p;
+              s = clip;
+            } else {
+              out[0] = (s.cx ?? 0) + s.rx * sgnPow(Math.sin(th), e);
+              out[1] = ym;
+              out[2] = (s.cz ?? 0) + s.rz * sgnPow(Math.cos(th), e);
+              return;
+            }
+          }
+        }
         out[0] = (s.cx ?? 0) + s.rx * sgnPow(Math.sin(th), e);
-        out[1] = o.yMax ? Math.min(s.y, o.yMax(th)) : s.y;
+        out[1] = s.y;
         out[2] = (s.cz ?? 0) + s.rz * sgnPow(Math.cos(th), e);
       },
       (k, out) => {
@@ -399,6 +434,33 @@ export class Painter {
     }
     if (o.xf) transformArrays(pos, nor, o.xf);
     this.push(pos, nor, idx);
+    return this;
+  }
+
+  /** Malla libre `cols × rows` (p. ej. casquetes de pelo o de gorro). `flip` invierte el sentido de las caras. */
+  grid(cols: number, rows: number, point: (j: number, k: number, out: number[]) => void, o: { wrap?: boolean; flip?: boolean } = {}): this {
+    const pos: number[] = [];
+    const idx: number[] = [];
+    const tmp = [0, 0, 0];
+    for (let k = 0; k < rows; k++) {
+      for (let j = 0; j < cols; j++) {
+        point(j, k, tmp);
+        pos.push(tmp[0]!, tmp[1]!, tmp[2]!);
+      }
+    }
+    const quads = o.wrap ? cols : cols - 1;
+    for (let k = 0; k < rows - 1; k++) {
+      for (let j = 0; j < quads; j++) {
+        const j1 = o.wrap ? (j + 1) % cols : j + 1;
+        const a = k * cols + j;
+        const b = k * cols + j1;
+        const c = (k + 1) * cols + j1;
+        const d = (k + 1) * cols + j;
+        if (o.flip) idx.push(a, c, b, a, d, c);
+        else idx.push(a, b, c, a, c, d);
+      }
+    }
+    this.push(pos, smoothNormals(pos, idx), idx);
     return this;
   }
 

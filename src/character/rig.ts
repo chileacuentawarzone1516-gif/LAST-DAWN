@@ -115,6 +115,8 @@ export interface SkinSet {
   neck: SkinFn;
   arm: (s: Side) => SkinFn;
   leg: (s: Side) => SkinFn;
+  /** Caña de la bota: mezcla shin → foot en el tobillo. */
+  boot: (s: Side) => SkinFn;
   /** Prenda que cuelga bajo la cadera (abrigos): parte del peso pasa al muslo del lado correspondiente. */
   skirt: SkinFn;
   /** Torso + cuello + cabeza (capuchas, cuellos altos, melenas): mezcla hacia la cabeza por arriba. */
@@ -124,6 +126,7 @@ export interface SkinSet {
 export function makeSkins(index: Record<BoneName, number>, j: Joints): SkinSet {
   const arms = ([1, -1] as Side[]).map((s) => chainSkin(index, [sideBone('uArm', s), sideBone('fArm', s), sideBone('hand', s)], [j.elbowY, j.wristY], [0.035, 0.025]));
   const legs = ([1, -1] as Side[]).map((s) => chainSkin(index, ['hips', sideBone('thigh', s), sideBone('shin', s), sideBone('foot', s)], [j.hipY, j.kneeY, j.ankleY], [0.05, 0.045, 0.03]));
+  const boots = ([1, -1] as Side[]).map((s) => chainSkin(index, [sideBone('shin', s), sideBone('foot', s)], [j.ankleY], [0.03]));
   const torso = chainSkin(index, ['chest', 'spine', 'hips'], [j.chestJ, j.waistJ], [0.07, 0.07]);
   const upper = chainSkin(index, ['head', 'neck', 'chest', 'spine', 'hips'], [j.headJ, j.neckBaseY, j.chestJ, j.waistJ], [0.02, 0.03, 0.07, 0.07]);
   const hips = index.hips;
@@ -141,5 +144,5 @@ export function makeSkins(index: Record<BoneName, number>, j: Joints): SkinSet {
     out.i1 = x >= 0 ? thighL : thighR;
     out.w1 = k;
   };
-  return { torso, neck: chainSkin(index, ['head', 'neck', 'chest'], [j.headJ, j.neckBaseY], [0.02, 0.03]), arm: (s) => arms[s === 1 ? 0 : 1]!, leg: (s) => legs[s === 1 ? 0 : 1]!, skirt, upper };
+  return { torso, neck: chainSkin(index, ['head', 'neck', 'chest'], [j.headJ, j.neckBaseY], [0.02, 0.03]), arm: (s) => arms[s === 1 ? 0 : 1]!, leg: (s) => legs[s === 1 ? 0 : 1]!, boot: (s) => boots[s === 1 ? 0 : 1]!, skirt, upper };
 }

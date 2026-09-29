@@ -8,7 +8,7 @@
  */
 import type { Gender } from '../core/types';
 import type { BuildCtx } from './build';
-import { RingTable, newRow } from './geo';
+import { RingTable, newRow, sgnPow } from './geo';
 import type { RingRow, Station } from './geo';
 import { sideBone } from './rig';
 import type { Joints, RigLayout, Side } from './rig';
@@ -101,15 +101,15 @@ const HAND_ROWS: RingRow[] = [
 
 /** Perfil de la cabeza: u (0 mentón … 1 coronilla), factores de semiancho (M, F), semiprofundidad (M, F) y centro z. */
 const HEAD_U: readonly (readonly number[])[] = [
-  [0.00, 0.26, 0.22, 0.30, 0.28, 0.30],
-  [0.05, 0.50, 0.42, 0.48, 0.44, 0.26],
-  [0.14, 0.80, 0.66, 0.72, 0.68, 0.15],
-  [0.28, 0.93, 0.85, 0.88, 0.86, 0.07],
-  [0.44, 0.99, 0.96, 0.97, 0.96, 0.02],
+  [0.00, 0.30, 0.26, 0.32, 0.30, 0.30],
+  [0.05, 0.56, 0.48, 0.52, 0.48, 0.25],
+  [0.14, 0.86, 0.74, 0.76, 0.72, 0.13],
+  [0.28, 0.97, 0.91, 0.91, 0.89, 0.06],
+  [0.44, 1.00, 0.98, 0.98, 0.97, 0.02],
   [0.60, 1.00, 1.00, 1.00, 1.00, 0.0],
-  [0.76, 0.95, 0.96, 0.97, 0.97, -0.02],
-  [0.89, 0.78, 0.80, 0.82, 0.82, -0.03],
-  [0.965, 0.50, 0.52, 0.55, 0.55, -0.03],
+  [0.76, 0.96, 0.97, 0.98, 0.98, -0.02],
+  [0.89, 0.80, 0.82, 0.84, 0.84, -0.03],
+  [0.965, 0.52, 0.54, 0.57, 0.57, -0.03],
   [1.00, 0.06, 0.06, 0.06, 0.06, -0.03],
 ];
 
@@ -130,15 +130,15 @@ interface Raw {
 const RAW: Record<Gender, Raw> = {
   male: {
     height: 1.78, ankleY: 0.085, kneeY: 0.50, hipY: 0.93, waistJ: 1.05, chestJ: 1.22, shoulderY: 1.455, neckBaseY: 1.485,
-    headH: 0.236, headW: 0.079, headD: 0.098, headP: 2.5, hipX: 0.088, shoulderX: 0.197, neckR: 0.056,
-    upperArm: 0.30, foreArm: 0.26, armScale: 1, handLen: 0.18, footK: 1,
-    eye: { x: 0.037, rx: 0.0128, ry: 0.0108, rz: 0.0088 },
+    headH: 0.258, headW: 0.091, headD: 0.106, headP: 2.3, hipX: 0.09, shoulderX: 0.2, neckR: 0.06,
+    upperArm: 0.30, foreArm: 0.26, armScale: 1, handLen: 0.19, footK: 1.04,
+    eye: { x: 0.042, rx: 0.0158, ry: 0.0136, rz: 0.0092 },
   },
   female: {
     height: 1.68, ankleY: 0.08, kneeY: 0.475, hipY: 0.885, waistJ: 0.99, chestJ: 1.16, shoulderY: 1.375, neckBaseY: 1.412,
-    headH: 0.228, headW: 0.071, headD: 0.090, headP: 2.15, hipX: 0.085, shoulderX: 0.158, neckR: 0.040,
-    upperArm: 0.265, foreArm: 0.235, armScale: 0.76, handLen: 0.156, footK: 0.9,
-    eye: { x: 0.033, rx: 0.0142, ry: 0.0128, rz: 0.0088 },
+    headH: 0.246, headW: 0.084, headD: 0.099, headP: 2.05, hipX: 0.087, shoulderX: 0.158, neckR: 0.042,
+    upperArm: 0.265, foreArm: 0.235, armScale: 0.76, handLen: 0.166, footK: 0.94,
+    eye: { x: 0.038, rx: 0.0172, ry: 0.0154, rz: 0.0092 },
   },
 };
 
@@ -162,26 +162,69 @@ export function headBack(h: HeadSpec, x: number, y: number): number {
   return r.cz - r.rz * (1 - k ** h.p) ** (1 / h.p);
 }
 
-export function makeBody(gender: Gender): BodySpec {
+export interface P3 { x: number; y: number; z: number }
+
+/** Punto de la superficie de la cabeza en el ángulo th (0 = frente, +π/2 = izquierda del personaje) y altura y, desplazado `off` hacia fuera. */
+export function headPoint(h: HeadSpec, th: number, y: number, off: number, out: P3): P3 {
+  const r = h.table.at(Math.min(y, h.crownY), _r);
+  const e = 2 / h.p;
+  out.x = (r.rx + off) * sgnPow(Math.sin(th), e);
+  out.y = y;
+  out.z = r.cz + (r.rz + off) * sgnPow(Math.cos(th), e);
+  return out;
+}
+
+const _pa: P3 = { x: 0, y: 0, z: 0 };
+const _pb: P3 = { x: 0, y: 0, z: 0 };
+const _pc: P3 = { x: 0, y: 0, z: 0 };
+const _pd: P3 = { x: 0, y: 0, z: 0 };
+
+/** Normal exterior (unitaria) de la cabeza en (th, y) por diferencias finitas. */
+export function headNormal(h: HeadSpec, th: number, y: number, out: P3): P3 {
+  const dt = 0.03;
+  const dy = 0.006;
+  const a = headPoint(h, th - dt, y, 0, _pa);
+  const b = headPoint(h, th + dt, y, 0, _pb);
+  const c = headPoint(h, th, y - dy, 0, _pc);
+  const d = headPoint(h, th, Math.min(y + dy, h.crownY + 0.02), 0, _pd);
+  // t = dP/dθ, u = dP/dy;  n = t × u (apunta hacia fuera con y creciente).
+  const tx = b.x - a.x;
+  const ty = b.y - a.y;
+  const tz = b.z - a.z;
+  const ux = d.x - c.x;
+  const uy = d.y - c.y;
+  const uz = d.z - c.z;
+  const nx = ty * uz - tz * uy;
+  const ny = tz * ux - tx * uz;
+  const nz = tx * uy - ty * ux;
+  const l = Math.hypot(nx, ny, nz) || 1;
+  out.x = nx / l;
+  out.y = ny / l;
+  out.z = nz / l;
+  return out;
+}
+
+export function makeBody(gender: Gender, tailU = 0.68): BodySpec {
   const r = RAW[gender];
   const g = gender === 'male' ? 0 : 1;
-  const chinY = r.shoulderY + (gender === 'male' ? 0.089 : 0.077);
+  const chinY = r.neckBaseY + (gender === 'male' ? 0.046 : 0.042);
   const crownY = chinY + r.headH;
   const rows: RingRow[] = HEAD_U.map((u) => row(chinY + u[0]! * r.headH, r.headW * u[1 + g]!, r.headD * u[3 + g]!, r.headD * u[5]!));
   const head: HeadSpec = { H: r.headH, W: r.headW, D: r.headD, p: r.headP, chinY, crownY, table: new RingTable(rows) };
-  const eyeY = chinY + 0.53 * r.headH;
+  const eyeY = chinY + 0.505 * r.headH;
   const eyeZ = headFront(head, r.eye.x, eyeY) - 0.0035;
   const elbowY = r.shoulderY - r.upperArm;
   const wristY = elbowY - r.foreArm;
   const handK = r.handLen / 0.18;
-  const tailY = chinY + 0.70 * r.headH;
+  const legK = gender === 'male' ? 1.1 : 1.07;
+  const tailY = chinY + tailU * r.headH;
   const tailZ = -r.headD * 0.98;
   return {
-    gender, height: r.height, ankleY: r.ankleY, kneeY: r.kneeY, hipY: r.hipY, waistJ: r.waistJ, chestJ: r.chestJ,
+    gender, height: crownY, ankleY: r.ankleY, kneeY: r.kneeY, hipY: r.hipY, waistJ: r.waistJ, chestJ: r.chestJ,
     shoulderY: r.shoulderY, neckBaseY: r.neckBaseY, headJ: chinY + 0.06, chinY, crownY,
     elbowY, wristY, hipX: r.hipX, shoulderX: r.shoulderX, neckR: r.neckR,
     upperArm: r.upperArm, foreArm: r.foreArm, armScale: r.armScale, handLen: r.handLen, handK,
-    torso: new RingTable(TORSO[gender]), leg: new RingTable(LEG[gender]), arm: new RingTable(ARM_ROWS),
+    torso: new RingTable(TORSO[gender]), leg: new RingTable(LEG[gender].map((l) => row(l.y, l.rx * legK, l.rz * legK, l.cz))), arm: new RingTable(ARM_ROWS),
     hand: new RingTable(HAND_ROWS.map((h) => row(h.y * handK, h.rx * handK, h.rz * handK, h.cz * handK))),
     head,
     eye: { x: r.eye.x, y: eyeY, z: eyeZ, rx: r.eye.rx, ry: r.eye.ry, rz: r.eye.rz },
@@ -265,15 +308,15 @@ export function buildBody(c: BuildCtx): void {
   );
 
   // Brazos y manos.
-  const t = newRow();
   for (const s of [1, -1] as Side[]) {
     const armSkin = skins.arm(s);
     const arm: Station[] = [];
     for (let i = b.arm.rows.length - 1; i >= 0; i--) {
       const r = b.arm.rows[i]!;
+      if (r.y < 0) continue;
       arm.push({ y: b.shoulderY - r.y * (b.upperArm + b.foreArm), rx: r.rx * b.armScale, rz: r.rz * b.armScale, cx: s * b.shoulderX });
     }
-    kit.paint('skin', armSkin).loftY(arm, { seg: 10, caps: 'bottom' });
+    kit.paint('skin', armSkin).loftY(arm, { seg: 10, caps: 'both' });
 
     const hand = kit.paint('skin', sideBone('hand', s));
     hand.loftY(handStations(b, s, 0, b.handLen, 0, 7), { seg: 10, p: 2.6, caps: 'bottom' });
@@ -289,5 +332,4 @@ export function buildBody(c: BuildCtx): void {
       { seg: 6 },
     );
   }
-  void t;
 }

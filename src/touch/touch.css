@@ -160,8 +160,8 @@
 /* Interactuar: anillo de progreso y etiqueta (a un lado, sin tapar la vista). */
 .tc-interact { color: var(--tc-accent); background: rgba(6, 36, 28, 0.7); border-color: var(--tc-accent); box-shadow: 0 0 14px rgba(95, 224, 183, 0.4), 0 2px 10px rgba(0, 0, 0, 0.5); }
 .tc-interact.down { background: rgba(95, 224, 183, 0.4); }
-.tc-ring { position: absolute; inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px); transform: rotate(-90deg); pointer-events: none; }
-.tc-ring circle { fill: none; stroke-width: 3.2; }
+.tc-btn .tc-ring { position: absolute; left: -6px; top: -6px; width: calc(100% + 12px); height: calc(100% + 12px); transform: rotate(-90deg); filter: none; pointer-events: none; }
+.tc-ring circle { fill: none; stroke-width: 2.2; }
 .tc-ring .bg { stroke: rgba(232, 241, 252, 0.16); }
 .tc-ring .fg { stroke: var(--tc-accent); stroke-linecap: round; }
 .tc-il {
@@ -171,6 +171,7 @@
   transform: translateY(-50%);
   display: grid;
   gap: 1px;
+  width: max-content;
   max-width: 42vw;
   padding: 5px 10px;
   border-radius: 6px;

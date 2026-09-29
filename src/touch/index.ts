@@ -69,7 +69,7 @@ const MAX_POINTERS = 12;
 const PULSE_SLOTS = 8;
 /** Pasos del anillo de progreso de interactuar. */
 const RING_STEPS = 60;
-const RING_CIRC = 2 * Math.PI * 18.5;
+const RING_CIRC = 2 * Math.PI * 19;
 /** Periodo (s) de sondeo del tamaño de pantalla y de refresco del texto de interactuar. */
 const POLL_S = 0.5;
 const LABEL_S = 0.15;
@@ -229,8 +229,8 @@ export function createTouch(ctx: GameContext): TouchSystem {
   interactBtn.el.hidden = true;
   interactBtn.el.insertAdjacentHTML(
     'afterbegin',
-    `<svg class="tc-ring" viewBox="0 0 40 40" aria-hidden="true"><circle class="bg" cx="20" cy="20" r="18.5"/>` +
-      `<circle class="fg" cx="20" cy="20" r="18.5" stroke-dasharray="${RING_CIRC.toFixed(2)}" stroke-dashoffset="${RING_CIRC.toFixed(2)}"/></svg>`,
+    `<svg class="tc-ring" viewBox="0 0 40 40" aria-hidden="true"><circle class="bg" cx="20" cy="20" r="19"/>` +
+      `<circle class="fg" cx="20" cy="20" r="19" stroke-dasharray="${RING_CIRC.toFixed(2)}" stroke-dashoffset="${RING_CIRC.toFixed(2)}"/></svg>`,
   );
   interactBtn.el.insertAdjacentHTML('beforeend', '<span class="tc-il" aria-hidden="true"><i hidden>MANTÉN</i><b></b></span>');
   const ringFg = interactBtn.el.querySelector('.tc-ring .fg') as SVGElement;
