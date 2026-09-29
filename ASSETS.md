@@ -17,18 +17,24 @@ Los modelos 3D del mundo, los infectados, las armas, las texturas y todo el audi
 
 ## Modelos de personaje
 
-| Fichero | Tamaño | Contenido |
+| Fichero (`public/models/characters/`) | Peso | Uso |
 | --- | --- | --- |
-| `public/models/characters/LD_Character_Male.glb` | 7,8 MB | Personaje masculino: cuerpo, esqueleto de 56 huesos y todas las piezas (6 peinados, 8 conjuntos, 5 accesorios) |
-| `public/models/characters/LD_Character_Female.glb` | 11 MB | Ídem, femenino |
+| `LD_Character_Male.glb` / `LD_Character_Female.glb` | 1,4 / 1,8 MB | Variante **alta** (escritorio): todos los triángulos, texturas a 2048 |
+| `LD_Character_Male_low.glb` / `LD_Character_Female_low.glb` | 1,2 / 1,2 MB | Variante **baja** (móviles, calidad baja, poca RAM): ~45 % menos triángulos, texturas a 1024 |
+
+Los modelos originales (7,8 y 11 MB) están en `assets-src/characters/` y **no se cargan en el juego**. Las variantes
+se generan con `pnpm assets:characters` (`tools/optimize-characters.mjs`): geometría cuantizada y comprimida con
+meshopt, texturas WebP y simplificación de mallas para la variante baja. Se verificó por render que la variante alta
+es visualmente idéntica al original (diferencia media 0,03-0,06 sobre 255) y que ambas conservan esqueleto de 56
+huesos, piezas y materiales por nombre (`tests/character.assets.test.ts`).
 
 - **Origen y licencia** (según el README del paquete original): cuerpos base de *Human Base Meshes* de Blender
   Studio (**CC0**, dominio público); ropa, pelo, accesorios, rig, texturas y código de generación creados para
   LAST DAWN y de uso libre en el juego.
-- Se cargan **bajo demanda** (sólo el género activo, sólo en la pantalla de personalización) y el juego conserva un
-  personaje procedural de respaldo si la descarga falla o el ahorro de datos está activo.
+- Se cargan **bajo demanda** (sólo el género activo, sólo en la pantalla de personalización, y se liberan al empezar
+  la partida). Si la descarga falla o el ahorro de datos está activo, el juego usa un personaje procedural de respaldo.
 - `tools/ld_chargen/` contiene el generador (Python/Blender) para regenerarlos o ampliarlos; `tests/fixtures/ld_character_data.json`
-  son las tablas que exporta y `tests/character.assets.test.ts` verifica que coinciden con `CHARACTER` (`src/config.ts`).
+  son las tablas que exporta y el test comprueba que coinciden con `CHARACTER` (`src/config.ts`).
 - Vista de referencia de los 12 presets: [`docs/personajes-presets.png`](docs/personajes-presets.png).
 
 ## Dependencias de ejecución
@@ -37,7 +43,7 @@ Los modelos 3D del mundo, los infectados, las armas, las texturas y todo el audi
 | --- | --- | --- |
 | [three](https://github.com/mrdoob/three.js) | Render WebGL 2 y utilidades (`three/addons`) | MIT |
 
-Dependencias de desarrollo (no se distribuyen en el build): `typescript`, `vite`, `vitest`, `@types/three`,
+Dependencias de desarrollo (no se distribuyen en el build): `typescript`, `vite`, `vitest`, `@types/three`, `@gltf-transform/*` y `meshoptimizer` (sólo el pipeline de optimización de modelos),
 `@types/node` y `playwright-core` (sólo para los scripts de QA con el Chromium instalado en el sistema; no se
 descarga ningún navegador).
 

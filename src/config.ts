@@ -909,6 +909,10 @@ export const CHARACTER = {
     maxAnisotropy: 4,
     touchMaxAnisotropy: 2,
     files: { male: 'models/characters/LD_Character_Male.glb', female: 'models/characters/LD_Character_Female.glb' } as Record<Gender, string>,
+    /** Variante ligera (mallas simplificadas, texturas reducidas): móviles, calidad 'low' o poca memoria. */
+    lowFiles: { male: 'models/characters/LD_Character_Male_low.glb', female: 'models/characters/LD_Character_Female_low.glb' } as Record<Gender, string>,
+    /** También se usa la variante ligera con `navigator.deviceMemory` ≤ este valor (GB). */
+    lowDeviceMemoryGb: 4,
   },
   presets: {
     male: [

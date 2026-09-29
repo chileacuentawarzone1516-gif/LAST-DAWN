@@ -50,3 +50,54 @@ describe('datos de los modelos GLB = CHARACTER (config.ts)', () => {
     expect(data.tintableRoles).toEqual(['Skin', 'Hair', 'Jacket', 'JacketShade', 'Pants', 'Accent', 'Glove', 'Boots']);
   });
 });
+
+// ── Modelos optimizados (tools/optimize-characters.mjs) ─────────────────────────────────────────
+interface GltfJson {
+  extensionsUsed?: string[];
+  nodes: { name?: string; mesh?: number; skin?: number }[];
+  skins?: { joints: number[] }[];
+  materials: { name: string }[];
+  images?: { mimeType?: string }[];
+}
+
+/** Lee sólo el chunk JSON de un GLB (no hace falta decodificar meshopt para inspeccionar la estructura). */
+function readGlbJson(file: string): { json: GltfJson; bytes: number } {
+  const buf = readFileSync(new URL(`../${file}`, import.meta.url));
+  const jsonLen = buf.readUInt32LE(12);
+  return { json: JSON.parse(buf.subarray(20, 20 + jsonLen).toString('utf8')) as GltfJson, bytes: buf.length };
+}
+
+const MB = 1024 * 1024;
+const MODELS = [
+  { g: 'Male', high: 'public/models/characters/LD_Character_Male.glb', low: 'public/models/characters/LD_Character_Male_low.glb', src: 'assets-src/characters/LD_Character_Male.glb' },
+  { g: 'Female', high: 'public/models/characters/LD_Character_Female.glb', low: 'public/models/characters/LD_Character_Female_low.glb', src: 'assets-src/characters/LD_Character_Female.glb' },
+];
+
+describe('modelos GLB optimizados', () => {
+  for (const m of MODELS) {
+    it(`${m.g}: presupuesto de peso (alta ≤ 2.5 MB, baja ≤ 1.6 MB) y mucho menor que el original`, () => {
+      const orig = readGlbJson(m.src).bytes;
+      const high = readGlbJson(m.high).bytes;
+      const low = readGlbJson(m.low).bytes;
+      expect(high).toBeLessThan(2.5 * MB);
+      expect(low).toBeLessThan(1.6 * MB);
+      expect(low).toBeLessThan(high);
+      expect(high).toBeLessThan(orig * 0.35);
+    });
+
+    it(`${m.g}: usa meshopt + WebP y conserva esqueleto, piezas y materiales del original`, () => {
+      const orig = readGlbJson(m.src).json;
+      for (const f of [m.high, m.low]) {
+        const { json } = readGlbJson(f);
+        expect(json.extensionsUsed).toEqual(expect.arrayContaining(['EXT_meshopt_compression', 'EXT_texture_webp']));
+        // La cuantización genera un skin por malla (matrices inversas compensadas); todos con los 56 huesos.
+        expect(json.skins!.length).toBeGreaterThanOrEqual(1);
+        expect(json.skins!.every((sk) => sk.joints.length === 56)).toBe(true);
+        expect((json.images ?? []).every((i) => i.mimeType === 'image/webp')).toBe(true);
+        const pieces = (j: GltfJson) => j.nodes.filter((n) => n.mesh !== undefined).map((n) => n.name).sort();
+        expect(pieces(json)).toEqual(pieces(orig));
+        expect(json.materials.map((x) => x.name).sort()).toEqual(orig.materials.map((x) => x.name).sort());
+      }
+    });
+  }
+});
