@@ -218,11 +218,6 @@ export function buildHair(c: BuildCtx, info: OutfitInfo): number {
 
     case 'corto': {
       cap({ thick: 0.017, top: 0.008, front: 0.84, side: 0.64, back: 0.5, sideburn: 0.07, fade: 0.65 });
-      // Flequillo corto hacia delante y abajo.
-      for (let i = 0; i < 5; i++) {
-        const th = -0.62 + i * 0.31;
-        strand(th, yU(0.86), 0.038, 0.021, 0.0085, { x: 0, y: -0.7, z: 0.35 }, [1, 0, 0], 0.006);
-      }
       return 0.026;
     }
 

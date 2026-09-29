@@ -1,0 +1,382 @@
+{
+  "version": 1,
+  "skinTones": [
+    {
+      "id": "clara",
+      "name": "Clara",
+      "color": 15847344
+    },
+    {
+      "id": "trigueña",
+      "name": "Trigueña",
+      "color": 14462598
+    },
+    {
+      "id": "canela",
+      "name": "Canela",
+      "color": 12618332
+    },
+    {
+      "id": "morena",
+      "name": "Morena",
+      "color": 9855549
+    },
+    {
+      "id": "oscura",
+      "name": "Oscura",
+      "color": 7029289
+    },
+    {
+      "id": "ebano",
+      "name": "Ébano",
+      "color": 4533023
+    }
+  ],
+  "hairColors": [
+    {
+      "id": "negro",
+      "name": "Negro",
+      "color": 1380623
+    },
+    {
+      "id": "castano-oscuro",
+      "name": "Castaño oscuro",
+      "color": 3811099
+    },
+    {
+      "id": "castano",
+      "name": "Castaño",
+      "color": 5978658
+    },
+    {
+      "id": "rubio",
+      "name": "Rubio",
+      "color": 13214298
+    },
+    {
+      "id": "pelirrojo",
+      "name": "Pelirrojo",
+      "color": 10108702
+    },
+    {
+      "id": "gris",
+      "name": "Gris",
+      "color": 9211796
+    },
+    {
+      "id": "blanco",
+      "name": "Blanco",
+      "color": 14211806
+    },
+    {
+      "id": "verde",
+      "name": "Verde señal",
+      "color": 3129226
+    }
+  ],
+  "hairStyles": {
+    "male": [
+      {
+        "id": "rapado",
+        "name": "Rapado"
+      },
+      {
+        "id": "corto",
+        "name": "Corto"
+      },
+      {
+        "id": "peinado",
+        "name": "Peinado atrás"
+      },
+      {
+        "id": "rizado",
+        "name": "Rizado"
+      },
+      {
+        "id": "melena",
+        "name": "Melena"
+      },
+      {
+        "id": "mohicano",
+        "name": "Mohicano"
+      }
+    ],
+    "female": [
+      {
+        "id": "pixie",
+        "name": "Corte pixie"
+      },
+      {
+        "id": "media",
+        "name": "Media melena"
+      },
+      {
+        "id": "larga",
+        "name": "Larga"
+      },
+      {
+        "id": "coleta",
+        "name": "Coleta"
+      },
+      {
+        "id": "trenzas",
+        "name": "Trenzas"
+      },
+      {
+        "id": "mono",
+        "name": "Moño"
+      }
+    ]
+  },
+  "outfits": [
+    {
+      "id": "militar",
+      "name": "Militar",
+      "jacket": 4870710,
+      "pants": 3356714,
+      "accent": 9075274,
+      "glove": 2237471
+    },
+    {
+      "id": "urbano",
+      "name": "Urbano",
+      "jacket": 2831426,
+      "pants": 1975083,
+      "accent": 13686494,
+      "glove": 1382428
+    },
+    {
+      "id": "sanitario",
+      "name": "Sanitario",
+      "jacket": 14278114,
+      "pants": 9413556,
+      "accent": 14236218,
+      "glove": 2832970
+    },
+    {
+      "id": "obrero",
+      "name": "Obrero",
+      "jacket": 13203738,
+      "pants": 2895928,
+      "accent": 15261770,
+      "glove": 3879978
+    },
+    {
+      "id": "sigilo",
+      "name": "Sigilo",
+      "jacket": 1382429,
+      "pants": 1053206,
+      "accent": 4186288,
+      "glove": 723982
+    },
+    {
+      "id": "desierto",
+      "name": "Desierto",
+      "jacket": 10126176,
+      "pants": 7298885,
+      "accent": 3813152,
+      "glove": 4865836
+    },
+    {
+      "id": "artico",
+      "name": "Ártico",
+      "jacket": 13161180,
+      "pants": 6187896,
+      "accent": 3900100,
+      "glove": 2766144
+    },
+    {
+      "id": "carmesi",
+      "name": "Carmesí",
+      "jacket": 7151398,
+      "pants": 2431002,
+      "accent": 14725962,
+      "glove": 1708307
+    }
+  ],
+  "accessories": [
+    {
+      "id": "none",
+      "name": "Ninguno"
+    },
+    {
+      "id": "cap",
+      "name": "Gorra"
+    },
+    {
+      "id": "beanie",
+      "name": "Gorro"
+    },
+    {
+      "id": "goggles",
+      "name": "Gafas tácticas"
+    },
+    {
+      "id": "bandana",
+      "name": "Pañuelo"
+    },
+    {
+      "id": "headset",
+      "name": "Auriculares"
+    }
+  ],
+  "presets": {
+    "male": [
+      {
+        "name": "Veterano",
+        "tagline": "Ex-militar curtido",
+        "appearance": {
+          "skin": 1,
+          "hairStyle": 0,
+          "hairColor": 5,
+          "outfit": 0,
+          "accessory": 0
+        }
+      },
+      {
+        "name": "Rastreador",
+        "tagline": "Habla poco, dispara mejor",
+        "appearance": {
+          "skin": 3,
+          "hairStyle": 3,
+          "hairColor": 0,
+          "outfit": 5,
+          "accessory": 3
+        }
+      },
+      {
+        "name": "Técnico",
+        "tagline": "Arregla lo que otros rompen",
+        "appearance": {
+          "skin": 0,
+          "hairStyle": 2,
+          "hairColor": 2,
+          "outfit": 3,
+          "accessory": 1
+        }
+      },
+      {
+        "name": "Médico",
+        "tagline": "Juró no hacer daño… a los vivos",
+        "appearance": {
+          "skin": 2,
+          "hairStyle": 1,
+          "hairColor": 1,
+          "outfit": 2,
+          "accessory": 5
+        }
+      },
+      {
+        "name": "Fantasma",
+        "tagline": "Entra y sale sin dejar rastro",
+        "appearance": {
+          "skin": 4,
+          "hairStyle": 5,
+          "hairColor": 7,
+          "outfit": 4,
+          "accessory": 4
+        }
+      },
+      {
+        "name": "Polar",
+        "tagline": "Llegó desde la base ártica",
+        "appearance": {
+          "skin": 5,
+          "hairStyle": 4,
+          "hairColor": 6,
+          "outfit": 6,
+          "accessory": 2
+        }
+      }
+    ],
+    "female": [
+      {
+        "name": "Capitana",
+        "tagline": "Lidera desde el frente",
+        "appearance": {
+          "skin": 1,
+          "hairStyle": 3,
+          "hairColor": 2,
+          "outfit": 0,
+          "accessory": 0
+        }
+      },
+      {
+        "name": "Exploradora",
+        "tagline": "Conoce cada callejón",
+        "appearance": {
+          "skin": 3,
+          "hairStyle": 4,
+          "hairColor": 0,
+          "outfit": 5,
+          "accessory": 3
+        }
+      },
+      {
+        "name": "Ingeniera",
+        "tagline": "Un soplete y un plan",
+        "appearance": {
+          "skin": 2,
+          "hairStyle": 5,
+          "hairColor": 4,
+          "outfit": 3,
+          "accessory": 1
+        }
+      },
+      {
+        "name": "Doctora",
+        "tagline": "Cura primero, pregunta después",
+        "appearance": {
+          "skin": 0,
+          "hairStyle": 1,
+          "hairColor": 3,
+          "outfit": 2,
+          "accessory": 5
+        }
+      },
+      {
+        "name": "Sombra",
+        "tagline": "Invisible hasta que es tarde",
+        "appearance": {
+          "skin": 4,
+          "hairStyle": 0,
+          "hairColor": 7,
+          "outfit": 4,
+          "accessory": 4
+        }
+      },
+      {
+        "name": "Ventisca",
+        "tagline": "Fría, precisa, implacable",
+        "appearance": {
+          "skin": 5,
+          "hairStyle": 2,
+          "hairColor": 6,
+          "outfit": 6,
+          "accessory": 2
+        }
+      }
+    ]
+  },
+  "hatAccessories": [
+    "cap",
+    "beanie"
+  ],
+  "boots": {
+    "desierto": 7033396,
+    "artico": 3818576,
+    "sanitario": 2832970,
+    "obrero": 3878434
+  },
+  "bootsDefault": 2762274,
+  "tintableRoles": [
+    "Skin",
+    "Hair",
+    "Jacket",
+    "JacketShade",
+    "Pants",
+    "Accent",
+    "Glove",
+    "Boots"
+  ]
+}
