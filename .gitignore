@@ -1,0 +1,53 @@
+# =====================================================================
+# LAST DAWN - Unreal Engine 5.8 .gitignore
+# Conservative strategy: ignore only generated, local, IDE and secret files.
+# NEVER ignore: Content/ Config/ Source/ LastDawn.uproject .vsconfig
+#               Content/__ExternalActors__/ Content/__ExternalObjects__/
+# =====================================================================
+
+# --- Unreal generated (root only) ---
+/Binaries/
+/Intermediate/
+/Saved/
+/DerivedDataCache/
+
+# --- User/local Unreal configuration ---
+Config/User*.ini
+
+# --- Visual Studio / IDE ---
+.vs/
+.idea/
+.vscode/
+*.sln
+*.slnx
+*.suo
+*.user
+*.VC.db
+*.VC.opendb
+*.opensdf
+*.sdf
+*.pdb
+
+# --- Plugin generated ---
+Plugins/**/Binaries/
+Plugins/**/Intermediate/
+
+# --- Packaging / output (root only) ---
+/Packaged/
+/Archive/
+/Releases/
+Build/**/Intermediate/
+
+# --- Android signing secrets ---
+*.keystore
+*.jks
+Build/Android/*.properties
+
+# --- Blender backups ---
+*.blend1
+*.blend2
+
+# --- OS ---
+Thumbs.db
+desktop.ini
+.DS_Store
