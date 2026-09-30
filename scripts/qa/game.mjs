@@ -385,11 +385,12 @@ export class Bot {
  *  - freeze (true): congela el bucle rAF al arrancar → el tiempo sólo avanza con bot.step().
  *  - seed: fija Math.random (repetibilidad del botín/IA).
  *  - probe (true): instala la sonda de eventos (window.__qaBot).
+ *  - contextOptions / initScripts (aditivos): perfil móvil (isMobile, hasTouch, DPR…) y scripts extra.
  */
-export async function openGame(browser, baseUrl, { path = '/?qa=1', freeze = true, seed = null, probe = true, timeoutMs = 60_000, botTimeoutMs = 90_000 } = {}) {
-  const initScripts = [{ fn: rafGateScript }];
+export async function openGame(browser, baseUrl, { path = '/?qa=1', freeze = true, seed = null, probe = true, timeoutMs = 60_000, botTimeoutMs = 90_000, contextOptions = {}, initScripts: extraInit = [] } = {}) {
+  const initScripts = [{ fn: rafGateScript }, ...extraInit];
   if (seed !== null) initScripts.push({ fn: seedScript, arg: seed });
-  const { page, context, problems } = await openPage(browser, baseUrl + path, { initScripts });
+  const { page, context, problems } = await openPage(browser, baseUrl + path, { initScripts, contextOptions });
   // Espera a window.__qa; si la página ya lanzó un error de arranque, falla rápido (no espera al timeout).
   const t0 = Date.now();
   let ready = false;

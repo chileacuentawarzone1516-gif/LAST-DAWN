@@ -165,10 +165,11 @@ const NO_GL_ARGS = ['--disable-gpu', '--disable-webgl', '--disable-3d-apis', '--
 
 /**
  * Lanza Chromium con WebGL2 por software (SwiftShader) para entornos sin GPU.
- * Opciones aditivas: `noGL` (arranca SIN WebGL, para probar el aviso amistoso) y `args` (extras).
+ * Opciones aditivas: `noGL` (arranca SIN WebGL, para probar el aviso amistoso), `args` (extras) y
+ * `audioNeedsGesture` (no desactiva la política de autoplay: el AudioContext exige un gesto real).
  * El navegador queda registrado para cerrarse aunque el script muera.
  */
-export async function launchBrowser({ headless = true, noGL = false, args = [] } = {}) {
+export async function launchBrowser({ headless = true, noGL = false, args = [], audioNeedsGesture = false } = {}) {
   const executablePath = findChrome();
   if (!executablePath) throw new Error('No se encontró Chromium. Define CHROME_PATH (Chrome/Chromium/Edge).');
   const browser = await chromium.launch({
@@ -178,7 +179,8 @@ export async function launchBrowser({ headless = true, noGL = false, args = [] }
       '--no-sandbox',
       '--disable-dev-shm-usage',
       ...(noGL ? NO_GL_ARGS : GL_ARGS),
-      '--autoplay-policy=no-user-gesture-required',
+      // Con `audioNeedsGesture` se conserva la política de autoplay real (QA móvil: desbloqueo por toque).
+      ...(audioNeedsGesture ? [] : ['--autoplay-policy=no-user-gesture-required']),
       '--mute-audio',
       ...args,
     ],
@@ -195,18 +197,25 @@ const isFavicon = (url) => /\/favicon\.ico(\?|$)/.test(url ?? '');
 
 /**
  * Abre una página capturando errores de consola, excepciones y fallos de red.
- * Opciones aditivas: `initScripts` (funciones/strings para addInitScript) y `timeout` de goto.
+ * Opciones aditivas: `initScripts` (funciones/strings para addInitScript), `timeout` de goto y
+ * `contextOptions` (opciones de newContext para el perfil móvil: isMobile, hasTouch, deviceScaleFactor…).
  */
-export async function openPage(browser, url, { width = 1280, height = 720, wait = 'load', initScripts = [], timeout = 45_000 } = {}) {
-  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
+export async function openPage(browser, url, { width = 1280, height = 720, wait = 'load', initScripts = [], timeout = 45_000, contextOptions = {} } = {}) {
+  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1, ...contextOptions });
   const page = await context.newPage();
-  const problems = { errors: [], warnings: [], pageErrors: [], failedRequests: [] };
+  // `errorDetails`/`warningDetails` (aditivos): texto + URL de origen, para separar aplicación / navegador / externo.
+  const problems = { errors: [], warnings: [], pageErrors: [], failedRequests: [], errorDetails: [], warningDetails: [] };
   page.on('console', (msg) => {
     const t = msg.type();
+    const url = msg.location()?.url ?? '';
     if (t === 'error') {
-      if (isFavicon(msg.location()?.url)) return;
+      if (isFavicon(url)) return;
       problems.errors.push(msg.text());
-    } else if (t === 'warning') problems.warnings.push(msg.text());
+      problems.errorDetails.push({ text: msg.text(), url });
+    } else if (t === 'warning') {
+      problems.warnings.push(msg.text());
+      problems.warningDetails.push({ text: msg.text(), url });
+    }
   });
   page.on('pageerror', (err) => problems.pageErrors.push(String(err?.stack ?? err)));
   page.on('requestfailed', (req) => {
